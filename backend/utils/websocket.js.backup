@@ -1,0 +1,92 @@
+/**
+ * WebSocket server configuration for real-time market data
+ */
+
+const setupWebSocketServer = (io) => {
+  // Track connected clients and their subscriptions
+  const clients = new Map();
+
+  io.on('connection', (socket) => {
+    console.log(`New client connected: ${socket.id}`);
+    
+    // Initialize client data
+    clients.set(socket.id, {
+      subscribedSymbols: new Set(),
+      subscribedIndices: new Set(),
+      subscribedTimeframes: new Set(['1d']), // Default timeframe
+    });
+
+    // Handle subscriptions to stock symbols
+    socket.on('subscribe:symbol', (symbol) => {
+      console.log(`Client ${socket.id} subscribed to symbol: ${symbol}`);
+      const clientData = clients.get(socket.id);
+      clientData.subscribedSymbols.add(symbol);
+    });
+
+    // Handle unsubscribing from stock symbols
+    socket.on('unsubscribe:symbol', (symbol) => {
+      console.log(`Client ${socket.id} unsubscribed from symbol: ${symbol}`);
+      const clientData = clients.get(socket.id);
+      clientData.subscribedSymbols.delete(symbol);
+    });
+
+    // Handle subscriptions to market indices
+    socket.on('subscribe:index', (index) => {
+      console.log(`Client ${socket.id} subscribed to index: ${index}`);
+      const clientData = clients.get(socket.id);
+      clientData.subscribedIndices.add(index);
+    });
+
+    // Handle timeframe changes
+    socket.on('subscribe:timeframe', (timeframe) => {
+      console.log(`Client ${socket.id} subscribed to timeframe: ${timeframe}`);
+      const clientData = clients.get(socket.id);
+      clientData.subscribedTimeframes.add(timeframe);
+    });
+
+    // Handle client disconnect
+    socket.on('disconnect', () => {
+      console.log(`Client disconnected: ${socket.id}`);
+      clients.delete(socket.id);
+    });
+  });
+
+  // Function to broadcast data to subscribed clients
+  const broadcastSymbolUpdate = (symbol, data) => {
+    for (const [socketId, clientData] of clients.entries()) {
+      if (clientData.subscribedSymbols.has(symbol)) {
+        io.to(socketId).emit('symbol:update', { symbol, data });
+      }
+    }
+  };
+
+  // Function to broadcast market index updates
+  const broadcastIndexUpdate = (index, data) => {
+    for (const [socketId, clientData] of clients.entries()) {
+      if (clientData.subscribedIndices.has(index)) {
+        io.to(socketId).emit('index:update', { index, data });
+      }
+    }
+  };
+
+  // Function to broadcast stock news
+  const broadcastNews = (symbol, news) => {
+    for (const [socketId, clientData] of clients.entries()) {
+      if (clientData.subscribedSymbols.has(symbol) || symbol === 'MARKET') {
+        io.to(socketId).emit('news:update', { symbol, news });
+      }
+    }
+  };
+
+  // Return functions that other modules can use to broadcast data
+  return {
+    broadcastSymbolUpdate,
+    broadcastIndexUpdate,
+    broadcastNews,
+    getClients: () => clients
+  };
+};
+
+module.exports = {
+  setupWebSocketServer
+}; 
