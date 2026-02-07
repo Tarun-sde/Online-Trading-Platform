@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef } from 'react';
 import wsService from '@/utils/websocket';
 
+const BASE = "http://localhost:5000/api/market-data";
+
 interface RealTimeDataResult {
   data: any;
   changes: any | null;
@@ -15,140 +17,167 @@ interface RealTimeDataResult {
   changeTimeframe: (timeframe: string) => void;
 }
 
-/**
- * Custom hook for subscribing to real-time market data with change detection
- * 
- * @param {string} type - Type of data to subscribe to (stock, index, forex, crypto, commodity, economy, news)
- * @param {string} symbol - Symbol or identifier to subscribe to
- * @param {boolean} autoConnect - Automatically connect to WebSocket on mount
- * @returns {RealTimeDataResult} - Real-time data and connection state
- */
 export function useRealTimeData(
-  type: string, 
-  symbol: string, 
+  type: string,
+  symbol: string,
   autoConnect: boolean = true
 ): RealTimeDataResult {
+
   const [data, setData] = useState<any>(null);
   const [changes, setChanges] = useState<any | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  
-  // Keep track of the latest data for comparison
+
   const latestDataRef = useRef<any>(null);
 
-  // Connect to WebSocket on mount if autoConnect is true
+  // ✅ guards against double execution
+  const connectedRef = useRef(false);
+  const subscribedRef = useRef(false);
+
+  // =========================
+  // REST bootstrap (runs once per symbol/type)
+  // =========================
+
   useEffect(() => {
-    if (autoConnect) {
-      connectToWebSocket();
-    }
-    
-    return () => {
-      // Unsubscribe when component unmounts
-      if (wsService.isConnected) {
+    let cancelled = false;
+
+    const loadInitial = async () => {
+      try {
+        let url = "";
+
         switch (type) {
-          case 'stock':
-            wsService.unsubscribeFromSymbol(symbol);
-            break;
-          case 'index':
-            wsService.unsubscribeFromIndex(symbol);
-            break;
-          case 'forex':
-            wsService.unsubscribeFromForex(symbol);
-            break;
-          case 'crypto':
-            wsService.unsubscribeFromCrypto(symbol);
-            break;
-          case 'commodity':
-            wsService.unsubscribeFromCommodity(symbol);
-            break;
-          case 'economy':
-            wsService.unsubscribeFromEconomy(symbol);
-            break;
-          case 'news':
-            wsService.unsubscribeFromNews(symbol);
-            break;
+          case "stock": url = `${BASE}/stocks`; break;
+          case "forex": url = `${BASE}/forex`; break;
+          case "crypto": url = `${BASE}/crypto`; break;
+          case "commodity": url = `${BASE}/commodities`; break;
+          case "economy": url = `${BASE}/economy`; break;
+          case "index": url = `${BASE}/indices`; break;
+          default: return;
         }
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("REST fetch failed");
+
+        const list = await res.json();
+        const found = list.find((x: any) => x.symbol === symbol);
+
+        if (!cancelled && found) {
+          setData(found);
+          latestDataRef.current = found;
+          setLastUpdated(new Date(found.lastUpdated || Date.now()));
+        }
+
+      } catch (e) {
+        if (!cancelled) setError("Initial fetch failed");
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     };
-  }, [type, symbol, autoConnect]);
 
-  // Subscribe to real-time updates
+    loadInitial();
+    return () => { cancelled = true; };
+
+  }, [type, symbol]);
+
+  // =========================
+  // WebSocket connect (guarded)
+  // =========================
+
   useEffect(() => {
-    if (!wsService.isConnected || !type || !symbol) return;
-    
-    setIsLoading(true);
-    
-    // Subscribe based on data type
+    if (!autoConnect) return;
+    if (connectedRef.current) return;
+
+    wsService.connect();
+    connectedRef.current = true;
+    setIsConnected(wsService.isConnected);
+
+  }, [autoConnect]);
+
+  // =========================
+  // WebSocket subscribe (guarded)
+  // =========================
+
+  useEffect(() => {
+    if (!wsService.isConnected) return;
+    if (!symbol) return;
+    if (subscribedRef.current) return;
+
+    subscribedRef.current = true;
+
     switch (type) {
-      case 'stock':
-        wsService.subscribeToSymbol(symbol);
-        break;
-      case 'index':
-        wsService.subscribeToIndex(symbol);
-        break;
-      case 'forex':
-        wsService.subscribeToForex(symbol);
-        break;
-      case 'crypto':
-        wsService.subscribeToSymbol(symbol);
-        break;
-      case 'commodity':
-        wsService.subscribeToCommodity(symbol);
-        break;
-      case 'economy':
-        wsService.subscribeToEconomy(symbol);
-        break;
-      case 'news':
-        wsService.subscribeToNews(symbol);
-        break;
+      case 'stock': wsService.subscribeToSymbol(symbol); break;
+      case 'index': wsService.subscribeToIndex(symbol); break;
+      case 'forex': wsService.subscribeToForex(symbol); break;
+      case 'crypto': wsService.subscribeToCrypto(symbol); break;
+      case 'commodity': wsService.subscribeToCommodity(symbol); break;
+      case 'economy': wsService.subscribeToEconomy(symbol); break;
+      case 'news': wsService.subscribeToNews(symbol); break;
     }
-    
-    // Register event listener
+
     const removeListener = wsService.addListener(type, symbol, (update: any) => {
-      if (update.data) {
-        setData(update.data);
-      }
-      
-      // Handle changes if provided
-      if (update.changes) {
-        setChanges(update.changes);
-        setLastUpdated(new Date(update.changes.timestamp || Date.now()));
-      }
-      
-      // Update latest data reference
+      if (!update?.data) return;
+
+      const prev = latestDataRef.current;
+
+      setData(update.data);
       latestDataRef.current = update.data;
-      
+
+      if (prev?.currentPrice && update.data.currentPrice) {
+        const diff = update.data.currentPrice - prev.currentPrice;
+        const pct = (diff / prev.currentPrice) * 100;
+
+        setChanges({
+          priceChange: diff,
+          pricePercentChange: pct,
+          timestamp: Date.now()
+        });
+      }
+
+      setLastUpdated(new Date());
       setIsLoading(false);
     });
-    
-    // Cleanup on unmount or when dependencies change
-    return removeListener;
-  }, [type, symbol, isConnected]);
 
-  // Function to manually connect to WebSocket
-  const connectToWebSocket = () => {
-    try {
+    return () => {
+      subscribedRef.current = false;
+
+      switch (type) {
+        case 'stock': wsService.unsubscribeFromSymbol(symbol); break;
+        case 'index': wsService.unsubscribeFromIndex(symbol); break;
+        case 'forex': wsService.unsubscribeFromForex(symbol); break;
+        case 'crypto': wsService.unsubscribeFromCrypto(symbol); break;
+        case 'commodity': wsService.unsubscribeFromCommodity(symbol); break;
+        case 'economy': wsService.unsubscribeFromEconomy(symbol); break;
+        case 'news': wsService.unsubscribeFromNews(symbol); break;
+      }
+
+      removeListener();
+    };
+
+  }, [type, symbol]);
+
+  // =========================
+  // manual controls
+  // =========================
+
+  const connect = () => {
+    if (!connectedRef.current) {
       wsService.connect();
-      setIsConnected(wsService.isConnected);
-      setError(null);
-    } catch (err) {
-      console.error('Failed to connect to WebSocket:', err);
-      setError('Failed to connect to real-time data service');
-      setIsConnected(false);
+      connectedRef.current = true;
     }
+    setIsConnected(wsService.isConnected);
   };
 
-  // Function to manually disconnect from WebSocket
-  const disconnectFromWebSocket = () => {
+  const disconnect = () => {
     wsService.disconnect();
+    connectedRef.current = false;
+    subscribedRef.current = false;
     setIsConnected(false);
   };
 
-  // Function to manually change the timeframe
-  const changeTimeframe = (timeframe: string) => {
-    wsService.subscribeToTimeframe(timeframe);
+  const changeTimeframe = (tf: string) => {
+    wsService.subscribeToTimeframe(tf);
   };
 
   return {
@@ -158,8 +187,8 @@ export function useRealTimeData(
     isLoading,
     error,
     lastUpdated,
-    connect: connectToWebSocket,
-    disconnect: disconnectFromWebSocket,
-    changeTimeframe,
+    connect,
+    disconnect,
+    changeTimeframe
   };
-} 
+}

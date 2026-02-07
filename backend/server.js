@@ -40,6 +40,8 @@ const io = socketIo(server, {
   },
 });
 
+app.use("/api/stocks", require("./routes/stockRoutes"));
+
 // Security middleware
 app.use(helmet());
 app.use(compression());

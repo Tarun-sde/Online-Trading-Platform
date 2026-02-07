@@ -367,7 +367,7 @@ const initializeMarketData = async (io) => {
 // Start periodic data updates
 const startPeriodicUpdates = () => {
   // Update stock prices every 10 seconds
-  setInterval(updateStockPrices, 10000);
+  setInterval(updateStockPrices, 60000);
   
   // Update market indices every 15 seconds
   setInterval(updateMarketIndices, 15000);
@@ -400,34 +400,75 @@ const startPeriodicUpdates = () => {
 };
 
 // Update stock prices with small random changes for mock data
+// Update stock prices — REAL Finnhub mode + mock fallback
 const updateStockPrices = async () => {
   try {
-    if (finnhubClient) {
-      // Implementation with real API
-      // TODO: Implement real API calls when API key is available
-    } else {
-      // Update mock data with random changes
-      mockStocks.forEach(stock => {
-        const randomChange = (Math.random() * 2 - 1) * (stock.currentPrice * 0.005); // Random ±0.5% change
-        const oldPrice = stock.currentPrice;
-        stock.currentPrice = parseFloat((oldPrice + randomChange).toFixed(2));
-        stock.change = parseFloat((stock.currentPrice - (oldPrice - stock.change)).toFixed(2));
-        stock.percentChange = parseFloat(((stock.change / (oldPrice - stock.change)) * 100).toFixed(2));
-        stock.lastUpdated = new Date();
-        
-        // Update cache
-        dataCache.symbols.set(stock.symbol, stock);
-        
-        // Broadcast update via websocket with enhanced change tracking
-        if (wsServer) {
-          wsServer.broadcastSymbolUpdate(stock.symbol, stock);
+
+    // ===== REAL API MODE =====
+    if (process.env.FINNHUB_API_KEY) {
+
+      for (const base of mockStocks) {
+        try {
+          const resp = await fetch(
+            `https://finnhub.io/api/v1/quote?symbol=${base.symbol}&token=${process.env.FINNHUB_API_KEY}`
+          );
+
+          if (!resp.ok) continue;
+
+          const q = await resp.json();
+
+          if (!q || !q.c) continue;
+
+          const updated = {
+            symbol: base.symbol,
+            name: base.name,
+            currentPrice: q.c,
+            change: q.d,
+            percentChange: q.dp,
+            previousClose: q.pc,
+            volume: base.volume,
+            marketCap: base.marketCap,
+            peRatio: base.peRatio,
+            lastUpdated: new Date()
+          };
+
+          dataCache.symbols.set(base.symbol, updated);
+
+          if (wsServer) {
+            wsServer.broadcastSymbolUpdate(base.symbol, updated);
+          }
+
+        } catch (err) {
+          console.log("Finnhub error:", base.symbol);
         }
-      });
+      }
+
+      return;
     }
+
+    // ===== MOCK FALLBACK MODE =====
+
+    mockStocks.forEach(stock => {
+      const randomChange = (Math.random() * 2 - 1) * (stock.currentPrice * 0.005);
+      const oldPrice = stock.currentPrice;
+
+      stock.currentPrice = +(oldPrice + randomChange).toFixed(2);
+      stock.change = +(stock.currentPrice - oldPrice).toFixed(2);
+      stock.percentChange = +((stock.change / oldPrice) * 100).toFixed(2);
+      stock.lastUpdated = new Date();
+
+      dataCache.symbols.set(stock.symbol, stock);
+
+      if (wsServer) {
+        wsServer.broadcastSymbolUpdate(stock.symbol, stock);
+      }
+    });
+
   } catch (error) {
-    console.error('Error updating stock prices:', error);
+    console.error('Stock update error:', error);
   }
 };
+
 
 // Update market indices
 const updateMarketIndices = async () => {

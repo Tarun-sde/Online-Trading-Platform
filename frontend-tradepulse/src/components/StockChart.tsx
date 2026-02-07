@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Area,
   AreaChart,
@@ -9,38 +9,6 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-
-// Sample data
-const generateData = (days: number, trend: 'up' | 'down' | 'volatile') => {
-  const result = [];
-  let baseValue = 100;
-  
-  for (let i = 0; i < days; i++) {
-    let volatility = Math.random() * 2 - 1; // between -1 and 1
-    
-    if (trend === 'up') {
-      baseValue += Math.random() * 3 + volatility + 0.2; // overall upward trend
-    } else if (trend === 'down') {
-      baseValue -= Math.random() * 3 + volatility + 0.2; // overall downward trend
-    } else {
-      baseValue += (Math.random() * 4 - 2) + volatility; // volatile
-    }
-    
-    // Ensure we don't go negative
-    baseValue = Math.max(baseValue, 30);
-    
-    const date = new Date();
-    date.setDate(date.getDate() - (days - i));
-    
-    result.push({
-      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      value: baseValue.toFixed(2),
-      volume: Math.floor(Math.random() * 10000000) + 1000000
-    });
-  }
-  
-  return result;
-};
 
 const timeRanges = [
   { label: '1D', days: 1, id: '1d' },
@@ -60,25 +28,55 @@ interface StockChartProps {
   trend?: 'up' | 'down' | 'volatile';
 }
 
+/**
+ * ✅ deterministic series builder
+ * anchors chart to real current price + change
+ */
+function buildSeries(days: number, current: number, change: number) {
+  const prev = current - change;
+  const result = [];
+
+  for (let i = 0; i < days; i++) {
+    const t = i / (days - 1);
+
+    // smooth curve between prev → current
+    const value =
+      prev + (current - prev) * t +
+      (Math.sin(i / 3) * change * 0.08); // tiny wiggle
+
+    const d = new Date();
+    d.setDate(d.getDate() - (days - i));
+
+    result.push({
+      date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      value: +value.toFixed(2),
+      volume: 0
+    });
+  }
+
+  // force last point exact
+  result[result.length - 1].value = +current.toFixed(2);
+
+  return result;
+}
+
 const StockChart = ({
   symbol,
   name,
   currentPrice,
   priceChange,
   percentChange,
-  trend = 'up'
 }: StockChartProps) => {
-  const [selectedRange, setSelectedRange] = useState('1m');
-  const [chartData, setChartData] = useState(() => {
-    const range = timeRanges.find(r => r.id === '1m') || timeRanges[2];
-    return generateData(range.days, trend);
-  });
 
-  const handleRangeChange = (rangeId: string) => {
-    setSelectedRange(rangeId);
-    const range = timeRanges.find(r => r.id === rangeId) || timeRanges[2];
-    setChartData(generateData(range.days, trend));
-  };
+  const [selectedRange, setSelectedRange] = useState('1m');
+
+  const days =
+    timeRanges.find(r => r.id === selectedRange)?.days ?? 30;
+
+  const chartData = useMemo(
+    () => buildSeries(days, currentPrice, priceChange),
+    [days, currentPrice, priceChange]
+  );
 
   const isPositive = percentChange >= 0;
   const chartColor = isPositive ? '#22c55e' : '#ef4444';
@@ -86,31 +84,36 @@ const StockChart = ({
   return (
     <div className="bg-gray-900 rounded-xl p-4 shadow-lg">
       <div className="flex flex-col space-y-4">
+
+        {/* header */}
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-xl font-bold text-white">{symbol}</h2>
             <p className="text-gray-400 text-sm">{name}</p>
           </div>
+
           <div className="text-right">
-            <p className="text-xl font-bold text-white">${currentPrice.toFixed(2)}</p>
+            <p className="text-xl font-bold text-white">
+              ${currentPrice.toFixed(2)}
+            </p>
             <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-              ${Math.abs(priceChange).toFixed(2)} ({isPositive ? '+' : '-'}{Math.abs(percentChange).toFixed(2)}%)
+              ${Math.abs(priceChange).toFixed(2)} ({isPositive ? '+' : '-'}
+              {Math.abs(percentChange).toFixed(2)}%)
             </p>
           </div>
         </div>
 
+        {/* chart */}
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={chartData}
-              margin={{ top: 10, right: 0, left: 0, bottom: 0 }}
-            >
+            <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={chartColor} stopOpacity={0.3} />
                   <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
                 </linearGradient>
               </defs>
+
               <XAxis
                 dataKey="date"
                 axisLine={false}
@@ -118,13 +121,15 @@ const StockChart = ({
                 tick={{ fill: '#6b7280', fontSize: 12 }}
                 minTickGap={30}
               />
+
               <YAxis
-                domain={['dataMin - 5', 'dataMax + 5']}
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: '#6b7280', fontSize: 12 }}
                 width={50}
+                domain={['dataMin', 'dataMax']}
               />
+
               <Tooltip
                 contentStyle={{
                   backgroundColor: '#1f2937',
@@ -132,10 +137,9 @@ const StockChart = ({
                   borderRadius: '0.5rem',
                   color: 'white'
                 }}
-                itemStyle={{ color: 'white' }}
-                formatter={(value: string) => [`$${value}`, 'Price']}
-                labelFormatter={(label) => `Date: ${label}`}
+                formatter={(v: number) => [`$${v.toFixed(2)}`, 'Value']}
               />
+
               <Area
                 type="monotone"
                 dataKey="value"
@@ -148,24 +152,26 @@ const StockChart = ({
           </ResponsiveContainer>
         </div>
 
+        {/* range buttons */}
         <div className="flex justify-between mt-2">
-          {timeRanges.map((range) => (
+          {timeRanges.map(r => (
             <button
-              key={range.id}
-              onClick={() => handleRangeChange(range.id)}
+              key={r.id}
+              onClick={() => setSelectedRange(r.id)}
               className={`px-3 py-1 rounded-md text-sm font-medium ${
-                selectedRange === range.id
+                selectedRange === r.id
                   ? 'bg-gray-700 text-white'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
             >
-              {range.label}
+              {r.label}
             </button>
           ))}
         </div>
+
       </div>
     </div>
   );
 };
 
-export default StockChart; 
+export default StockChart;

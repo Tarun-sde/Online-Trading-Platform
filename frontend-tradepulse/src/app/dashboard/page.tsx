@@ -6,6 +6,7 @@ import {
   ChartBarIcon, 
   ClockIcon 
 } from '@heroicons/react/24/outline';
+import { useEffect, useMemo, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import StockChart from '@/components/StockChart';
 import StatsCard from '@/components/StatsCard';
@@ -14,15 +15,57 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 export default function Dashboard() {
   // Sample portfolio data
-  const portfolioData = {
-    totalValue: 124568.45,
-    dayChange: 1245.30,
-    dayChangePercent: 1.01,
-    weeklyChange: 3256.78,
-    weeklyChangePercent: 2.68,
-    monthlyChange: -1876.45,
-    monthlyChangePercent: -1.48,
+const holdings = [
+  { symbol: "AAPL", shares: 25, avg: 165.23 },
+  { symbol: "MSFT", shares: 15, avg: 342.67 },
+  { symbol: "TSLA", shares: 20, avg: 242.15 },
+];
+
+const [prices, setPrices] = useState<Record<string, any>>({});
+
+useEffect(() => {
+  const load = async () => {
+    const res = await fetch("http://localhost:5000/api/market-data/stocks");
+    const list = await res.json();
+    const map: any = {};
+    for (const s of list) map[s.symbol] = s;
+    setPrices(map);
   };
+
+  load();
+  const id = setInterval(load, 60000);
+  return () => clearInterval(id);
+}, []);
+
+const portfolioData = useMemo(() => {
+  let totalValue = 0;
+  let prevValue = 0;
+
+  for (const h of holdings) {
+    const live = prices[h.symbol];
+    const price = live?.currentPrice ?? h.avg;
+    const prev = live?.previousClose ?? price;  // ✅ correct key
+
+
+    totalValue += price * h.shares;
+    prevValue += prev * h.shares;
+  }
+
+  const dayChange = totalValue - prevValue;
+  const dayChangePercent =
+    prevValue > 0 ? (dayChange / prevValue) * 100 : 0;
+
+  return {
+    totalValue,
+    dayChange,
+    dayChangePercent,
+    weeklyChange: dayChange * 5,
+    weeklyChangePercent: dayChangePercent * 5,
+    monthlyChange: dayChange * 20,
+    monthlyChangePercent: dayChangePercent * 20,
+  };
+}, [prices]);
+
 
   return (
     <ProtectedRoute>

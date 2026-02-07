@@ -1,104 +1,88 @@
 'use client';
 
-import { 
-  ChartBarIcon, 
-  CurrencyDollarIcon, 
-  GlobeAltIcon, 
-  NewspaperIcon 
-} from '@heroicons/react/24/outline';
+import { FolderPlusIcon } from '@heroicons/react/24/outline';
 import Navbar from '@/components/Navbar';
-import StockChart from '@/components/StockChart';
-import MarketOverview from '@/components/MarketOverview';
 import WatchList from '@/components/WatchList';
-import NewsSection from '@/components/NewsSection';
-import StatsCard from '@/components/StatsCard';
+import StockChart from '@/components/StockChart';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { useRealTimeData } from '@/hooks/useRealTimeData';
 
-export default function Home() {
+export default function WatchlistPage() {
+
+  // ✅ LIVE featured stock
+  const { data: featured } = useRealTimeData("stock", "AAPL", true);
+
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <Navbar />
-      
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-10">
-        <div className="mt-6 mb-8">
-          <h1 className="text-3xl font-bold">Welcome to NexTrade</h1>
-          <p className="text-gray-400 mt-2">Your modern trading platform for smart investors</p>
-        </div>
-        
-        {/* Stats Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatsCard
-            title="Portfolio Value"
-            value="$124,568.45"
-            change={2.34}
-            trend="up"
-            color="green"
-            icon={<CurrencyDollarIcon className="h-5 w-5 text-white" />}
-          />
-          <StatsCard
-            title="Today's Change"
-            value="$1,245.30"
-            change={1.01}
-            trend="up"
-            color="blue"
-            icon={<ChartBarIcon className="h-5 w-5 text-white" />}
-          />
-          <StatsCard
-            title="Active Positions"
-            value="16"
-            color="purple"
-            icon={<GlobeAltIcon className="h-5 w-5 text-white" />}
-          />
-          <StatsCard
-            title="News Alerts"
-            value="8 new"
-            color="orange"
-            icon={<NewspaperIcon className="h-5 w-5 text-white" />}
-          />
-        </div>
-        
-        {/* Chart and Market Overview */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2">
-            <StockChart
-              symbol="AAPL"
-              name="Apple Inc."
-              currentPrice={187.45}
-              priceChange={3.28}
-              percentChange={1.78}
-              trend="up"
-            />
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-950 text-white">
+        <Navbar />
+
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-10">
+
+          <div className="mt-6 mb-8 flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold">Watchlist</h1>
+              <p className="text-gray-400 mt-2">
+                Keep track of stocks you're interested in
+              </p>
+            </div>
+
+            <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white px-4 py-2 rounded-lg">
+              <FolderPlusIcon className="h-5 w-5" />
+              <span>Create New List</span>
+            </button>
           </div>
-          <div className="lg:col-span-1">
-            <MarketOverview />
+
+          {/* ✅ Featured Stock — now LIVE */}
+          <div className="mb-8">
+            <h2 className="text-xl font-bold text-white mb-4">
+              Featured Stock
+            </h2>
+
+            {featured && (
+              <StockChart
+                symbol={featured.symbol}
+                name={featured.name}
+                currentPrice={featured.currentPrice}
+                priceChange={featured.change}
+                percentChange={featured.percentChange}
+                trend={featured.percentChange >= 0 ? "up" : "down"}
+              />
+            )}
           </div>
-        </div>
-        
-        {/* Watchlist */}
-        <div className="mb-8">
+
+          {/* Watchlist table */}
           <WatchList />
-        </div>
-        
-        {/* News */}
-        <div>
-          <NewsSection />
-        </div>
-      </main>
-      
-      <footer className="bg-black/30 border-t border-gray-800 py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
+
+          {/* Callout */}
+          <div className="mt-8 bg-gradient-to-r from-blue-900 to-indigo-900 rounded-xl p-6 shadow-lg">
+            <div className="flex flex-col md:flex-row justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-white">
+                  Create Custom Watchlists
+                </h3>
+                <p className="text-blue-200 mt-1">
+                  Organize your favorite stocks by sector or strategy.
+                </p>
+              </div>
+
+              <button className="mt-4 md:mt-0 bg-white text-indigo-800 hover:bg-blue-100 transition-colors font-semibold px-5 py-2 rounded-lg">
+                Learn More
+              </button>
+            </div>
+          </div>
+
+        </main>
+
+        <footer className="bg-black/30 border-t border-gray-800 py-6">
+          <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
             <p className="text-sm text-gray-400">
               © 2025 NexTrade. All rights reserved.
             </p>
-            <div className="flex space-x-6 mt-4 md:mt-0">
-              <a href="#" className="text-sm text-gray-400 hover:text-white">Terms</a>
-              <a href="#" className="text-sm text-gray-400 hover:text-white">Privacy</a>
-              <a href="#" className="text-sm text-gray-400 hover:text-white">Cookie Policy</a>
-              <a href="#" className="text-sm text-gray-400 hover:text-white">Contact</a>
-            </div>
           </div>
-        </div>
-      </footer>
-    </div>
+        </footer>
+
+      </div>
+    </ProtectedRoute>
   );
 }
