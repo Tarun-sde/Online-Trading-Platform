@@ -3,9 +3,10 @@
  * Handles fetching and broadcasting real-time market data
  */
 
-const finnhub = require('finnhub');
-const fetch = require('node-fetch');
-const moment = require('moment');
+import finnhub from 'finnhub';
+import fetch from 'node-fetch';
+import moment from 'moment';
+import { setupWebSocketServer } from '../utils/websocket.js';
 
 // Market data cache
 const dataCache = {
@@ -319,7 +320,6 @@ const initializeMarketData = async (io) => {
   
   try {
     // Initialize WebSocket server once
-    const { setupWebSocketServer } = require('../utils/websocket');
     wsServer = setupWebSocketServer(io);
     
     // Initialize Finnhub API client if API key exists
@@ -1006,7 +1006,7 @@ const updateEconomicIndicators = async () => {
   }
 };
 
-module.exports = {
+export {
   initializeMarketData,
   getChartData,
   getAllMarketIndices,

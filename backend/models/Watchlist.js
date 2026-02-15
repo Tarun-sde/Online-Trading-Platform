@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const WatchlistSchema = new mongoose.Schema({
   user: {
@@ -39,4 +39,4 @@ const WatchlistSchema = new mongoose.Schema({
 // Create compound index for more efficient queries
 WatchlistSchema.index({ user: 1, isDefault: 1 });
 
-module.exports = mongoose.model('Watchlist', WatchlistSchema); 
+export default mongoose.model('Watchlist', WatchlistSchema); 
