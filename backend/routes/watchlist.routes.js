@@ -1,6 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { 
+import { 
   createWatchlist, 
   getUserWatchlists, 
   getWatchlistById, 
@@ -8,8 +8,8 @@ const {
   deleteWatchlist, 
   addProductToWatchlist, 
   removeProductFromWatchlist 
-} = require('../controllers/watchlist.controller');
-const { protect } = require('../middleware/auth.middleware');
+} from '../controllers/watchlist.controller.js';
+import { protect } from '../middleware/auth.middleware.js';
 
 // Watchlist routes
 router.route('/')
@@ -25,4 +25,4 @@ router.route('/:id/products/:productId')
   .post(protect, addProductToWatchlist)
   .delete(protect, removeProductFromWatchlist);
 
-module.exports = router; 
+export default router; 

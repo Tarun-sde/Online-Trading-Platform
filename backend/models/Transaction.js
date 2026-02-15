@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const TransactionSchema = new mongoose.Schema({
   user: {
@@ -81,4 +81,4 @@ TransactionSchema.index({ user: 1, product: 1 });
 TransactionSchema.index({ createdAt: 1 });
 TransactionSchema.index({ status: 1 });
 
-module.exports = mongoose.model('Transaction', TransactionSchema); 
+export default mongoose.model('Transaction', TransactionSchema); 
