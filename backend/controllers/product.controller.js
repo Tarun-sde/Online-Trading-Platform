@@ -1,5 +1,5 @@
-const asyncHandler = require('express-async-handler');
-const Product = require('../models/Product');
+import asyncHandler from 'express-async-handler';
+import Product from '../models/Product.js';
 
 /**
  * @desc    Get all products with filtering, sorting and pagination
@@ -273,7 +273,7 @@ const getProductPriceHistory = asyncHandler(async (req, res) => {
   }
 });
 
-module.exports = {
+export {
   getAllProducts,
   getProductById,
   createProduct,

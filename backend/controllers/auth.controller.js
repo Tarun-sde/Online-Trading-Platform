@@ -1,8 +1,8 @@
-const asyncHandler = require('express-async-handler');
-const User = require('../models/User');
-const { generateToken, generateRefreshToken } = require('../utils/jwtUtils');
-const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
+import asyncHandler from 'express-async-handler';
+import User from '../models/User.js';
+import { generateToken, generateRefreshToken } from '../utils/jwtUtils.js';
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 
 /**
  * @desc    Register a new user
@@ -183,7 +183,7 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.json({ message: 'Password reset successful' });
 });
 
-module.exports = {
+export {
   register,
   login,
   logout,

@@ -1,30 +1,33 @@
-const express = require('express');
-const cors = require('cors');
-const morgan = require('morgan');
-const dotenv = require('dotenv');
-const http = require('http');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 const socketIo = require('socket.io');
-const helmet = require('helmet');
-const compression = require('compression');
-const connectDB = require('./config/db');
-const { notFound, errorHandler } = require('./middleware/error.middleware');
-const { setupWebSocketServer } = require('./utils/websocket');
-const { initializeMarketData } = require('./services/marketData.service');
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
+import dotenv from 'dotenv';
+import http from 'http';
+import helmet from 'helmet';
+import compression from 'compression';
+import connectDB from './config/db.js';
+import { notFound, errorHandler } from './middleware/error.middleware.js';
+import { setupWebSocketServer } from './utils/websocket.js';
+import { initializeMarketData } from './services/marketData.service.js';
+import stockRoutes from './routes/stockRoutes.js';
 
 // Load environment variables
 dotenv.config();
 
 // Import routes
-const authRoutes = require('./routes/auth.routes');
-const userRoutes = require('./routes/user.routes');
-const productRoutes = require('./routes/product.routes');
-const orderRoutes = require('./routes/order.routes');
-const transactionRoutes = require('./routes/transaction.routes');
-const watchlistRoutes = require('./routes/watchlist.routes');
-const marketDataRoutes = require('./routes/marketData.routes');
-// const tradeRoutes = require('./routes/trade.routes'); // Commented out - file doesn't exist
-// const portfolioRoutes = require('./routes/portfolio.routes'); // Commented out - file doesn't exist
-const riskManagementRoutes = require('./routes/riskManagement.routes');
+import authRoutes from './routes/auth.routes.js';
+import userRoutes from './routes/user.routes.js';
+import productRoutes from './routes/product.routes.js';
+import orderRoutes from './routes/order.routes.js';
+import transactionRoutes from './routes/transaction.routes.js';
+import watchlistRoutes from './routes/watchlist.routes.js';
+import marketDataRoutes from './routes/marketData.routes.js';
+// import tradeRoutes from './routes/trade.routes'; // Commented out - file doesn't exist
+// import portfolioRoutes from './routes/portfolio.routes'; // Commented out - file doesn't exist
+import riskManagementRoutes from './routes/riskManagement.routes.js';
 
 // Connect to MongoDB
 connectDB();
@@ -32,24 +35,31 @@ connectDB();
 // Initialize Express app
 const app = express();
 const server = http.createServer(app);
+
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  'http://192.168.152.1:3000'
+].filter(Boolean);
+
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
   },
 });
 
-app.use("/api/stocks", require("./routes/stockRoutes"));
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
 
-// Security middleware
 app.use(helmet());
 app.use(compression());
-
-// Standard middleware
-app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
+
+app.use("/api/stocks", stockRoutes);
 
 // API routes
 app.use('/api/auth', authRoutes);

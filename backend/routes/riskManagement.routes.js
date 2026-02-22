@@ -1,6 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { protect } = require('../middleware/auth.middleware');
+import { protect } from '../middleware/auth.middleware.js';
 
 /**
  * @route   POST /api/risk-management/stop-loss
@@ -214,4 +214,4 @@ router.delete('/orders/:id', protect, async (req, res) => {
   }
 });
 
-module.exports = router; 
+export default router; 

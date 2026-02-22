@@ -1,6 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { 
+import { 
   getAllStocks, 
   getAllMarketIndices, 
   getChartData,
@@ -10,7 +10,7 @@ const {
   getAllEconomicIndicators,
   getLatestNews,
   getNewsForSymbol
-} = require('../services/marketData.service');
+} from '../services/marketData.service.js';
 
 /**
  * @route   GET /api/market-data/stocks
@@ -115,4 +115,4 @@ router.get('/news/:symbol', (req, res) => {
   res.json(news);
 });
 
-module.exports = router; 
+export default router; 
