@@ -5,70 +5,123 @@ import { useParams } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import RealTimeStockChart from '@/components/RealTimeStockChart';
 import RiskManagementForm from '@/components/RiskManagementForm';
-import { wsService } from '@/services/websocket';
+import wsService from '@/utils/websocket';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 // Mock stock data for different symbols
 const mockStockData: {[key: string]: any} = {
-  'AAPL': {
-    symbol: 'AAPL',
-    name: 'Apple Inc.',
-    currentPrice: 188.63,
-    change: 2.14,
+  'RELIANCE.NS': {
+    symbol: 'RELIANCE.NS',
+    name: 'Reliance Industries Ltd.',
+    currentPrice: 2456.75,
+    change: 12.50,
     percentChange: 1.15,
-    volume: 48215632,
-    marketCap: 2950000000000, // $2.95T
-    peRatio: 31.2,
-    fiftyTwoWeekHigh: 200.48,
-    fiftyTwoWeekLow: 150.22
+    volume: 12345678,
+    marketCap: 16500000000000,
+    peRatio: 28.5,
+    fiftyTwoWeekHigh: 2650.00,
+    fiftyTwoWeekLow: 2200.00
   },
-  'MSFT': {
-    symbol: 'MSFT',
-    name: 'Microsoft Corp.',
-    currentPrice: 402.79,
-    change: 4.56,
-    percentChange: 1.14,
-    volume: 21536982,
-    marketCap: 3020000000000, // $3.02T
-    peRatio: 38.1,
-    fiftyTwoWeekHigh: 420.12,
-    fiftyTwoWeekLow: 310.36
+  'TCS.NS': {
+    symbol: 'TCS.NS',
+    name: 'Tata Consultancy Services Ltd.',
+    currentPrice: 3856.20,
+    change: -15.30,
+    percentChange: -0.39,
+    volume: 2345678,
+    marketCap: 14000000000000,
+    peRatio: 32.1,
+    fiftyTwoWeekHigh: 4000.00,
+    fiftyTwoWeekLow: 3200.00
   },
-  'GOOGL': {
-    symbol: 'GOOGL',
-    name: 'Alphabet Inc.',
-    currentPrice: 141.16,
-    change: 1.36,
-    percentChange: 0.97,
-    volume: 22536712,
-    marketCap: 1750000000000, // $1.75T
-    peRatio: 25.2,
-    fiftyTwoWeekHigh: 155.22,
-    fiftyTwoWeekLow: 120.79
+  'INFY.NS': {
+  symbol: 'INFY.NS',
+  name: 'Infosys Ltd.',
+  currentPrice: 1625.40,
+  change: 8.75,
+  percentChange: 0.54,
+  volume: 3456789,
+  marketCap: 6750000000000,
+  peRatio: 29.8,
+  fiftyTwoWeekHigh: 1750.00,
+  fiftyTwoWeekLow: 1350.00
   },
-  'AMZN': {
-    symbol: 'AMZN',
-    name: 'Amazon.com Inc.',
-    currentPrice: 168.59,
-    change: 3.21,
-    percentChange: 1.94,
-    volume: 31256489,
-    marketCap: 1820000000000, // $1.82T
-    peRatio: 52.4,
-    fiftyTwoWeekHigh: 172.50,
-    fiftyTwoWeekLow: 118.93
+  'HDFCBANK.NS': {
+    symbol: 'HDFCBANK.NS',
+    name: 'HDFC Bank Ltd.',
+    currentPrice: 1589.60,
+    change: -5.20,
+    percentChange: -0.33,
+    volume: 4567890,
+    marketCap: 12000000000000,
+    peRatio: 21.4,
+    fiftyTwoWeekHigh: 1725.00,
+    fiftyTwoWeekLow: 1450.00
   },
-  'TSLA': {
-    symbol: 'TSLA',
-    name: 'Tesla Inc.',
-    currentPrice: 193.57,
-    change: -2.63,
-    percentChange: -1.34,
-    volume: 68947512,
-    marketCap: 620000000000, // $620B
-    peRatio: 48.7,
-    fiftyTwoWeekHigh: 278.98,
-    fiftyTwoWeekLow: 138.80
+
+  'ICICIBANK.NS': {
+    symbol: 'ICICIBANK.NS',
+    name: 'ICICI Bank Ltd.',
+    currentPrice: 1045.80,
+    change: 10.15,
+    percentChange: 0.98,
+    volume: 5678901,
+    marketCap: 7350000000000,
+    peRatio: 18.9,
+    fiftyTwoWeekHigh: 1115.00,
+    fiftyTwoWeekLow: 890.00
+  },
+
+  'SBIN.NS': {
+    symbol: 'SBIN.NS',
+    name: 'State Bank of India',
+    currentPrice: 745.25,
+    change: 6.40,
+    percentChange: 0.87,
+    volume: 6789012,
+    marketCap: 6650000000000,
+    peRatio: 12.6,
+    fiftyTwoWeekHigh: 780.00,
+    fiftyTwoWeekLow: 540.00
+  },
+
+  'ITC.NS': {
+    symbol: 'ITC.NS',
+    name: 'ITC Ltd.',
+    currentPrice: 468.90,
+    change: -2.35,
+    percentChange: -0.50,
+    volume: 7890123,
+    marketCap: 5850000000000,
+    peRatio: 24.3,
+    fiftyTwoWeekHigh: 499.00,
+    fiftyTwoWeekLow: 399.00
+  },
+
+  'LT.NS': {
+    symbol: 'LT.NS',
+    name: 'Larsen & Toubro Ltd.',
+    currentPrice: 3525.75,
+    change: 22.10,
+    percentChange: 0.63,
+    volume: 890123,
+    marketCap: 4850000000000,
+    peRatio: 34.7,
+    fiftyTwoWeekHigh: 3700.00,
+    fiftyTwoWeekLow: 2900.00
+  },
+
+  'BHARTIARTL.NS': {
+    symbol: 'BHARTIARTL.NS',
+    name: 'Bharti Airtel Ltd.',
+    currentPrice: 1215.30,
+    change: 14.80,
+    percentChange: 1.23,
+    volume: 9012345,
+    marketCap: 6850000000000,
+    peRatio: 41.2,
+    fiftyTwoWeekHigh: 1290.00,
+    fiftyTwoWeekLow: 950.00
   }
 };
 
@@ -100,7 +153,7 @@ export default function SymbolPage() {
       try {
         // Get data for the current symbol or fallback to AAPL if symbol not found
         const symbolKey = symbol as string;
-        const data = mockStockData[symbolKey] || mockStockData['AAPL'];
+        const data = mockStockData[symbolKey] || mockStockData['RELIANCE.NS'];
         
         setStockData(data);
         setCurrentPrice(data.currentPrice);
@@ -157,7 +210,7 @@ export default function SymbolPage() {
                   <p className="text-xl text-gray-400">{stockData.name}</p>
                 </div>
                 <div className="mt-3 sm:mt-0 text-right">
-                  <p className="text-3xl font-bold">${currentPrice.toFixed(2)}</p>
+                  <p className="text-3xl font-bold">&#8377;{currentPrice.toFixed(2)}</p>
                   <p className={`text-lg ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
                     {isPositive ? '+' : ''}{priceChange.toFixed(2)} ({isPositive ? '+' : ''}{percentChange.toFixed(2)}%)
                   </p>
@@ -182,11 +235,11 @@ export default function SymbolPage() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
                         <p className="text-sm text-gray-400">Market Cap</p>
-                        <p className="text-lg font-semibold">${(stockData.marketCap / 1000000000).toFixed(2)}B</p>
+                        <p className="text-lg font-semibold">&#8377;{(stockData.marketCap / 10000000).toFixed(2)} Cr</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-400">Volume</p>
-                        <p className="text-lg font-semibold">{(stockData.volume / 1000000).toFixed(2)}M</p>
+                        <p className="text-lg font-semibold">{(stockData.volume / 100000).toFixed(2)}L</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-400">P/E Ratio</p>
@@ -194,7 +247,7 @@ export default function SymbolPage() {
                       </div>
                       <div>
                         <p className="text-sm text-gray-400">52W Range</p>
-                        <p className="text-lg font-semibold">${stockData.fiftyTwoWeekLow?.toFixed(2)} - ${stockData.fiftyTwoWeekHigh?.toFixed(2)}</p>
+                        <p className="text-lg font-semibold">&#8377;{stockData.fiftyTwoWeekLow?.toFixed(2)} - &#8377;{stockData.fiftyTwoWeekHigh?.toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
@@ -218,7 +271,7 @@ export default function SymbolPage() {
                           <span className="px-2 py-0.5 text-xs bg-red-900/50 text-red-300 rounded">ACTIVE</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">5 shares @ ${(currentPrice * 0.95).toFixed(2)}</span>
+                          <span className="text-gray-400">5 shares @ &#8377;{(currentPrice * 0.95).toFixed(2)}</span>
                           <button className="text-red-400 hover:text-red-300">Cancel</button>
                         </div>
                       </div>
@@ -229,7 +282,7 @@ export default function SymbolPage() {
                           <span className="px-2 py-0.5 text-xs bg-green-900/50 text-green-300 rounded">ACTIVE</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">10 shares @ ${(currentPrice * 1.05).toFixed(2)}</span>
+                          <span className="text-gray-400">10 shares @ &#8377;{(currentPrice * 1.05).toFixed(2)}</span>
                           <button className="text-red-400 hover:text-red-300">Cancel</button>
                         </div>
                       </div>

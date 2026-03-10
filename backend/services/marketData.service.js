@@ -3,9 +3,9 @@
  * Handles fetching and broadcasting real-time market data
  */
 
-import finnhub from 'finnhub';
-import fetch from 'node-fetch';
 import moment from 'moment';
+import YahooFinance from 'yahoo-finance2';
+const yahooFinance = new YahooFinance();
 import { setupWebSocketServer } from '../utils/websocket.js';
 
 // Market data cache
@@ -20,52 +20,44 @@ const dataCache = {
   news: []               // News
 };
 
-// Initialize Finnhub client
-let finnhubClient;
+// Whether to use Yahoo Finance real API (default true — fallback to mock per-request on failure)
+let useRealAPI = true;
 
-// Websocket object from server.js
 let ioInstance;
 // WebSocket server instance
 let wsServer;
 
+const indexSymbolMap = {
+  '^NSEI': { name: 'NIFTY 50', yahooSymbol: '^NSEI' },
+  '^BSESN': { name: 'SENSEX', yahooSymbol: '^BSESN' },
+  '^NSEBANK': { name: 'NIFTY BANK', yahooSymbol: '^NSEBANK' }
+};
+
+const forexSymbolMap = {
+  'EUR/USD': { yahooSymbol: 'EURUSD=X', baseCurrency: 'EUR', quoteCurrency: 'USD' },
+  'GBP/USD': { yahooSymbol: 'GBPUSD=X', baseCurrency: 'GBP', quoteCurrency: 'USD' },
+  'USD/JPY': { yahooSymbol: 'JPY=X', baseCurrency: 'USD', quoteCurrency: 'JPY' },
+  'USD/INR': { yahooSymbol: 'USDINR=X', baseCurrency: 'USD', quoteCurrency: 'INR' }
+};
+
+// Yahoo Finance symbol mapping for cryptocurrencies
+const cryptoSymbolMap = {
+  'BTC/USD': { yahooSymbol: 'BTC-USD', name: 'Bitcoin' },
+  'ETH/USD': { yahooSymbol: 'ETH-USD', name: 'Ethereum' }
+};
+
+// Yahoo Finance symbol mapping for commodities
+const commoditySymbolMap = {
+  'GOLD':  { yahooSymbol: 'GC=F', name: 'Gold', unit: 'troy ounce' },
+  'SILVER': { yahooSymbol: 'SI=F', name: 'Silver', unit: 'troy ounce' },
+  'CRUDE': { yahooSymbol: 'CL=F', name: 'Crude Oil WTI', unit: 'barrel' }
+};
+
 // Mock data for development without API key
 const mockMarketIndices = [
-  {
-    name: 'S&P 500',
-    symbol: 'SPX',
-    currentValue: 4892.37,
-    change: 72.14,
-    percentChange: 1.49,
-    previousClose: 4820.23,
-    lastUpdated: new Date(),
-  },
-  {
-    name: 'Nasdaq',
-    symbol: 'COMP',
-    currentValue: 15628.95,
-    change: 198.89,
-    percentChange: 1.29,
-    previousClose: 15430.06,
-    lastUpdated: new Date(),
-  },
-  {
-    name: 'Dow Jones',
-    symbol: 'DJI',
-    currentValue: 38711.24,
-    change: -5.58,
-    percentChange: -0.01,
-    previousClose: 38716.82,
-    lastUpdated: new Date(),
-  },
-  {
-    name: 'Russell 2000',
-    symbol: 'RUT',
-    currentValue: 2026.39,
-    change: 35.06,
-    percentChange: 1.76,
-    previousClose: 1991.33,
-    lastUpdated: new Date(),
-  },
+  { name: 'NIFTY 50', symbol: '^NSEI', currentValue: 22456.78, change: 125.45, percentChange: 0.56, previousClose: 22331.33, lastUpdated: new Date() },
+  { name: 'SENSEX', symbol: '^BSESN', currentValue: 73845.67, change: 234.12, percentChange: 0.32, previousClose: 73611.55, lastUpdated: new Date() },
+  { name: 'NIFTY BANK', symbol: '^NSEBANK', currentValue: 48567.89, change: 345.67, percentChange: 0.72, previousClose: 48222.22, lastUpdated: new Date() }
 ];
 
 const mockForexPairs = [
@@ -109,16 +101,16 @@ const mockForexPairs = [
     lastUpdated: new Date(),
   },
   {
-    symbol: 'USD/CAD',
+    symbol: 'USD/INR',
     baseCurrency: 'USD',
-    quoteCurrency: 'CAD',
-    rate: 1.3495,
-    change: -0.0024,
-    percentChange: -0.18,
-    bid: 1.3493,
-    ask: 1.3497,
-    high24h: 1.3520,
-    low24h: 1.3470,
+    quoteCurrency: 'INR',
+    rate: 83.12,
+    change: 0.15,
+    percentChange: 0.18,
+    bid: 83.10,
+    ask: 83.14,
+    high24h: 83.35,
+    low24h: 82.90,
     lastUpdated: new Date(),
   },
 ];
@@ -148,30 +140,6 @@ const mockCryptocurrencies = [
     low24h: 3080.12,
     lastUpdated: new Date(),
   },
-  {
-    symbol: 'SOL/USD',
-    name: 'Solana',
-    price: 121.65,
-    change: -3.42,
-    percentChange: -2.73,
-    volume24h: 3567128945,
-    marketCap: 52987124365,
-    high24h: 125.80,
-    low24h: 120.15,
-    lastUpdated: new Date(),
-  },
-  {
-    symbol: 'XRP/USD',
-    name: 'XRP',
-    price: 0.5342,
-    change: 0.0098,
-    percentChange: 1.87,
-    volume24h: 1928345671,
-    marketCap: 28765123490,
-    high24h: 0.5380,
-    low24h: 0.5240,
-    lastUpdated: new Date(),
-  },
 ];
 
 const mockCommodities = [
@@ -181,6 +149,8 @@ const mockCommodities = [
     price: 2347.80,
     change: 15.60,
     percentChange: 0.67,
+    high24h: 2360.00,
+    low24h: 2330.00,
     unit: 'troy ounce',
     lastUpdated: new Date(),
   },
@@ -190,6 +160,8 @@ const mockCommodities = [
     price: 27.85,
     change: 0.32,
     percentChange: 1.16,
+    high24h: 28.10,
+    low24h: 27.50,
     unit: 'troy ounce',
     lastUpdated: new Date(),
   },
@@ -199,164 +171,114 @@ const mockCommodities = [
     price: 78.42,
     change: -1.24,
     percentChange: -1.56,
+    high24h: 79.80,
+    low24h: 77.90,
     unit: 'barrel',
-    lastUpdated: new Date(),
-  },
-  {
-    symbol: 'NATGAS',
-    name: 'Natural Gas',
-    price: 2.17,
-    change: 0.05,
-    percentChange: 2.36,
-    unit: 'MMBtu',
     lastUpdated: new Date(),
   },
 ];
 
 const mockEconomicIndicators = [
   {
-    symbol: 'US_CPI',
-    name: 'US Consumer Price Index',
-    value: 3.7,
-    previousValue: 3.8,
+    symbol: 'IN_CPI',
+    name: 'India Consumer Price Index',
+    value: 5.1,
+    previousValue: 5.3,
     unit: '%',
     period: 'YoY',
     lastUpdated: new Date(),
-    nextRelease: new Date(2023, 10, 15),
+    nextRelease: new Date(2024, 0, 12),
   },
   {
-    symbol: 'US_GDP',
-    name: 'US GDP Growth Rate',
-    value: 2.1,
-    previousValue: 2.4,
+    symbol: 'IN_GDP',
+    name: 'India GDP Growth Rate',
+    value: 7.6,
+    previousValue: 7.8,
     unit: '%',
     period: 'QoQ',
     lastUpdated: new Date(),
-    nextRelease: new Date(2023, 10, 26),
+    nextRelease: new Date(2024, 1, 28),
   },
   {
-    symbol: 'US_UNEMPLOYMENT',
-    name: 'US Unemployment Rate',
-    value: 3.8,
-    previousValue: 3.7,
+    symbol: 'IN_UNEMPLOYMENT',
+    name: 'India Unemployment Rate',
+    value: 7.1,
+    previousValue: 7.3,
     unit: '%',
     period: 'Monthly',
     lastUpdated: new Date(),
-    nextRelease: new Date(2023, 11, 3),
+    nextRelease: new Date(2024, 0, 15),
   },
   {
-    symbol: 'FED_RATE',
-    name: 'Federal Funds Rate',
-    value: 5.5,
-    previousValue: 5.5,
+    symbol: 'RBI_REPO',
+    name: 'RBI Repo Rate',
+    value: 6.5,
+    previousValue: 6.5,
     unit: '%',
     period: 'Current',
     lastUpdated: new Date(),
-    nextRelease: new Date(2023, 11, 14),
+    nextRelease: new Date(2024, 1, 8),
   },
 ];
 
 const mockStocks = [
-  {
-    symbol: 'AAPL',
-    name: 'Apple Inc.',
-    currentPrice: 187.45,
-    change: 3.28,
-    percentChange: 1.78,
-    volume: 23456789,
-    marketCap: 2950000000000,
-    peRatio: 30.5,
-    lastUpdated: new Date(),
-  },
-  {
-    symbol: 'MSFT',
-    name: 'Microsoft Corporation',
-    currentPrice: 408.59,
-    change: 4.23,
-    percentChange: 1.05,
-    volume: 18765432,
-    marketCap: 3050000000000,
-    peRatio: 34.2,
-    lastUpdated: new Date(),
-  },
-  {
-    symbol: 'GOOGL',
-    name: 'Alphabet Inc.',
-    currentPrice: 142.89,
-    change: -0.76,
-    percentChange: -0.53,
-    volume: 15432678,
-    marketCap: 1800000000000,
-    peRatio: 25.6,
-    lastUpdated: new Date(),
-  },
-  {
-    symbol: 'AMZN',
-    name: 'Amazon.com, Inc.',
-    currentPrice: 153.42,
-    change: 2.31,
-    percentChange: 1.53,
-    volume: 19876543,
-    marketCap: 1600000000000,
-    peRatio: 62.8,
-    lastUpdated: new Date(),
-  },
-  {
-    symbol: 'TSLA',
-    name: 'Tesla, Inc.',
-    currentPrice: 218.89,
-    change: -3.24,
-    percentChange: -1.46,
-    volume: 21345678,
-    marketCap: 700000000000,
-    peRatio: 58.3,
-    lastUpdated: new Date(),
-  },
+  { symbol: 'RELIANCE.NS', name: 'Reliance Industries Ltd.', currentPrice: 2456.75, change: 12.50, percentChange: 0.51, volume: 12345678, marketCap: 16500000000000, peRatio: 28.5, lastUpdated: new Date() },
+  { symbol: 'TCS.NS', name: 'Tata Consultancy Services Ltd.', currentPrice: 3856.20, change: -15.30, percentChange: -0.39, volume: 2345678, marketCap: 14000000000000, peRatio: 32.1, lastUpdated: new Date() },
+  { symbol: 'INFY.NS', name: 'Infosys Ltd.', currentPrice: 1523.45, change: 8.75, percentChange: 0.58, volume: 3456789, marketCap: 6300000000000, peRatio: 29.8, lastUpdated: new Date() },
+  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank Ltd.', currentPrice: 1689.30, change: 22.10, percentChange: 1.33, volume: 4567890, marketCap: 12500000000000, peRatio: 18.9, lastUpdated: new Date() },
+  { symbol: 'ICICIBANK.NS', name: 'ICICI Bank Ltd.', currentPrice: 1123.50, change: 5.25, percentChange: 0.47, volume: 5678901, marketCap: 7800000000000, peRatio: 16.2, lastUpdated: new Date() },
+  { symbol: 'SBIN.NS', name: 'State Bank of India', currentPrice: 678.90, change: 3.45, percentChange: 0.51, volume: 6789012, marketCap: 6000000000000, peRatio: 12.5, lastUpdated: new Date() },
+  { symbol: 'ITC.NS', name: 'ITC Ltd.', currentPrice: 456.75, change: -2.30, percentChange: -0.50, volume: 7890123, marketCap: 5600000000000, peRatio: 24.3, lastUpdated: new Date() },
+  { symbol: 'LT.NS', name: 'Larsen & Toubro Ltd.', currentPrice: 3456.80, change: 45.20, percentChange: 1.32, volume: 8901234, marketCap: 4800000000000, peRatio: 22.7, lastUpdated: new Date() },
+  { symbol: 'BHARTIARTL.NS', name: 'Bharti Airtel Ltd.', currentPrice: 1234.56, change: 12.34, percentChange: 1.01, volume: 9012345, marketCap: 6900000000000, peRatio: 19.4, lastUpdated: new Date() }
 ];
 
-// Initialize service and connect to market data APIs
 const initializeMarketData = async (io) => {
   ioInstance = io;
   
   try {
-    // Initialize WebSocket server once
     wsServer = setupWebSocketServer(io);
     
-    // Initialize Finnhub API client if API key exists
-    if (process.env.FINNHUB_API_KEY) {
-      finnhubClient = new finnhub.DefaultApi();
-      finnhubClient.apiKey = process.env.FINNHUB_API_KEY;
-      console.log('Finnhub API client initialized');
-    } else {
-      console.log('Using mock data - Finnhub API key not provided');
-      
-      // Load mock data into cache
-      mockStocks.forEach(stock => {
-        dataCache.symbols.set(stock.symbol, stock);
-      });
-      
-      mockMarketIndices.forEach(index => {
-        dataCache.indices.set(index.symbol, index);
-      });
-      
-      mockForexPairs.forEach(pair => {
-        dataCache.forex.set(pair.symbol, pair);
-      });
-      
-      mockCryptocurrencies.forEach(crypto => {
-        dataCache.crypto.set(crypto.symbol, crypto);
-      });
-      
-      mockCommodities.forEach(commodity => {
-        dataCache.commodities.set(commodity.symbol, commodity);
-      });
-      
-      mockEconomicIndicators.forEach(indicator => {
-        dataCache.economy.set(indicator.symbol, indicator);
-      });
+    // Verify Yahoo Finance connectivity with a test call
+    try {
+      const testQuote = await yahooFinance.quote('BTC-USD');
+      if (testQuote && testQuote.regularMarketPrice) {
+        useRealAPI = true;
+        console.log(`Yahoo Finance API initialized - using real market data (BTC-USD test price: $${testQuote.regularMarketPrice})`);
+      } else {
+        useRealAPI = false;
+        console.warn('Yahoo Finance returned empty data for test quote — falling back to mock data');
+      }
+    } catch (error) {
+      useRealAPI = false;
+      console.error('Yahoo Finance unavailable — falling back to mock data. Error:', error.message || error);
     }
+
+    // Pre-load mock data into cache as baseline (real data will overwrite on each update)
+    mockStocks.forEach(stock => {
+      dataCache.symbols.set(stock.symbol, stock);
+    });
+
+    mockMarketIndices.forEach(index => {
+      dataCache.indices.set(index.symbol, index);
+    });
+
+    mockForexPairs.forEach(pair => {
+      dataCache.forex.set(pair.symbol, pair);
+    });
+
+    mockCryptocurrencies.forEach(crypto => {
+      dataCache.crypto.set(crypto.symbol, crypto);
+    });
+
+    mockCommodities.forEach(commodity => {
+      dataCache.commodities.set(commodity.symbol, commodity);
+    });
+
+    mockEconomicIndicators.forEach(indicator => {
+      dataCache.economy.set(indicator.symbol, indicator);
+    });
     
-    // Start periodic updates
     startPeriodicUpdates();
     
   } catch (error) {
@@ -399,54 +321,50 @@ const startPeriodicUpdates = () => {
   console.log('Periodic market data updates started');
 };
 
-// Update stock prices with small random changes for mock data
-// Update stock prices — REAL Finnhub mode + mock fallback
 const updateStockPrices = async () => {
   try {
-
-    // ===== REAL API MODE =====
-    if (process.env.FINNHUB_API_KEY) {
+    if (useRealAPI) {
+      let successCount = 0;
 
       for (const base of mockStocks) {
         try {
-          const resp = await fetch(
-            `https://finnhub.io/api/v1/quote?symbol=${base.symbol}&token=${process.env.FINNHUB_API_KEY}`
-          );
+          const q = await yahooFinance.quote(base.symbol);
 
-          if (!resp.ok) continue;
-
-          const q = await resp.json();
-
-          if (!q || !q.c) continue;
+          if (!q || !q.regularMarketPrice) continue;
 
           const updated = {
             symbol: base.symbol,
             name: base.name,
-            currentPrice: q.c,
-            change: q.d,
-            percentChange: q.dp,
-            previousClose: q.pc,
-            volume: base.volume,
-            marketCap: base.marketCap,
-            peRatio: base.peRatio,
+            currentPrice: q.regularMarketPrice,
+            change: q.regularMarketChange ?? 0,
+            percentChange: q.regularMarketChangePercent ?? 0,
+            previousClose: q.regularMarketPreviousClose ?? base.currentPrice,
+            volume: q.regularMarketVolume ?? base.volume,
+            marketCap: q.marketCap ?? base.marketCap,
+            peRatio: q.trailingPE ?? base.peRatio,
             lastUpdated: new Date()
           };
 
           dataCache.symbols.set(base.symbol, updated);
+          successCount++;
 
           if (wsServer) {
             wsServer.broadcastSymbolUpdate(base.symbol, updated);
           }
 
         } catch (err) {
-          console.log("Finnhub error:", base.symbol);
+          console.error(`[Stock] Yahoo Finance error for ${base.symbol}:`, err.message);
         }
       }
 
-      return;
+      if (successCount > 0) {
+        console.log(`[Stock] Real data fetched for ${successCount}/${mockStocks.length} stocks`);
+        return;
+      }
+      console.warn('[Stock] All real API calls failed — falling back to mock data');
     }
 
-    // ===== MOCK FALLBACK MODE =====
+    // MOCK FALLBACK MODE
 
     mockStocks.forEach(stock => {
       const randomChange = (Math.random() * 2 - 1) * (stock.currentPrice * 0.005);
@@ -465,7 +383,7 @@ const updateStockPrices = async () => {
     });
 
   } catch (error) {
-    console.error('Stock update error:', error);
+    console.error('Stock update error:', error.message || error);
   }
 };
 
@@ -473,37 +391,71 @@ const updateStockPrices = async () => {
 // Update market indices
 const updateMarketIndices = async () => {
   try {
-    if (finnhubClient) {
-      // Implementation with real API
-      // TODO: Implement real API calls when API key is available
-    } else {
-      // Update mock indices with random changes
-      mockMarketIndices.forEach(index => {
-        const randomChange = (Math.random() * 2 - 1) * (index.currentValue * 0.002); // Random ±0.2% change
-        const oldValue = index.currentValue;
-        index.currentValue = parseFloat((oldValue + randomChange).toFixed(2));
-        index.change = parseFloat((index.currentValue - index.previousClose).toFixed(2));
-        index.percentChange = parseFloat(((index.change / index.previousClose) * 100).toFixed(2));
-        index.lastUpdated = new Date();
-        
-        // Update cache
-        dataCache.indices.set(index.symbol, index);
-        
-        // Broadcast update via websocket with enhanced change tracking
-        if (wsServer) {
-          wsServer.broadcastIndexUpdate(index.symbol, index);
+    if (useRealAPI) {
+      let successCount = 0;
+
+      for (const [symbol, meta] of Object.entries(indexSymbolMap)) {
+        try {
+          const q = await yahooFinance.quote(meta.yahooSymbol);
+          if (!q || !q.regularMarketPrice) continue;
+
+          const previousClose = q.regularMarketPreviousClose ?? 0;
+          const currentValue = q.regularMarketPrice;
+          const change = q.regularMarketChange ?? (currentValue - previousClose);
+          const percentChange = q.regularMarketChangePercent ?? (previousClose ? ((change / previousClose) * 100) : 0);
+
+          const updated = {
+            name: meta.name,
+            symbol: symbol,
+            currentValue: parseFloat(currentValue.toFixed(2)),
+            change: parseFloat(change.toFixed(2)),
+            percentChange: parseFloat(percentChange.toFixed(2)),
+            previousClose: parseFloat(previousClose.toFixed(2)),
+            lastUpdated: new Date()
+          };
+
+          dataCache.indices.set(symbol, updated);
+          successCount++;
+
+          if (wsServer) {
+            wsServer.broadcastIndexUpdate(symbol, updated);
+          }
+        } catch (err) {
+          console.error(`[Index] Yahoo Finance error for ${meta.yahooSymbol}:`, err.message);
         }
-      });
+      }
+
+      if (successCount > 0) {
+        console.log(`[Index] Real data fetched for ${successCount}/${Object.keys(indexSymbolMap).length} indices`);
+        return;
+      }
+      console.warn('[Index] All real API calls failed — falling back to mock data');
     }
+
+    // MOCK FALLBACK MODE 
+    mockMarketIndices.forEach(index => {
+      const randomChange = (Math.random() * 2 - 1) * (index.currentValue * 0.002);
+      const oldValue = index.currentValue;
+      index.currentValue = parseFloat((oldValue + randomChange).toFixed(2));
+      index.change = parseFloat((index.currentValue - index.previousClose).toFixed(2));
+      index.percentChange = parseFloat(((index.change / index.previousClose) * 100).toFixed(2));
+      index.lastUpdated = new Date();
+
+      dataCache.indices.set(index.symbol, index);
+
+      if (wsServer) {
+        wsServer.broadcastIndexUpdate(index.symbol, index);
+      }
+    });
   } catch (error) {
-    console.error('Error updating market indices:', error);
+    console.error('Error updating market indices:', error.message || error);
   }
 };
 
 // Fetch latest news with categories for different asset classes
 const fetchLatestNews = async () => {
   try {
-    if (finnhubClient) {
+    if (useRealAPI) {
       // Implementation with real API
       // TODO: Implement real API calls when API key is available
     } else {
@@ -511,36 +463,36 @@ const fetchLatestNews = async () => {
       const mockNews = [
         {
           id: '1',
-          headline: 'Fed Signals Potential Rate Cuts as Inflation Cools Down',
-          summary: 'Federal Reserve officials indicated they could begin cutting interest rates soon if inflation continues to cool toward their 2% target.',
-          source: 'Financial Times',
+          headline: 'RBI Signals Potential Repo Rate Cut as Inflation Eases Below 5%',
+          summary: 'Reserve Bank of India officials indicated they could begin cutting the repo rate soon if CPI inflation continues to cool toward their 4% target.',
+          source: 'Economic Times',
           datetime: new Date(),
           url: '#',
           related: 'MARKET',
-          categories: ['MARKET', 'ECONOMY', 'FED_RATE'],
-          image: 'https://placehold.co/400x300/111827/FFFFFF?text=Federal+Reserve'
+          categories: ['MARKET', 'ECONOMY', 'RBI_REPO'],
+          image: 'https://placehold.co/400x300/111827/FFFFFF?text=Reserve+Bank+of+India'
         },
         {
           id: '2',
-          headline: 'Apple Unveils New iPhone 16 with Advanced AI Features',
-          summary: 'Apple\'s latest iPhone comes packed with new AI capabilities, promising to revolutionize how users interact with their devices',
-          source: 'Wall Street Journal',
+          headline: 'TCS Reports Strong Q3 Earnings, Beats Street Estimates',
+          summary: 'Tata Consultancy Services posted robust revenue growth driven by strong deal wins in cloud and AI services.',
+          source: 'Moneycontrol',
           datetime: new Date(),
           url: '#',
-          related: 'AAPL',
+          related: 'TCS.NS',
           categories: ['STOCKS', 'TECHNOLOGY'],
-          image: 'https://placehold.co/400x300/111827/FFFFFF?text=Apple+iPhone'
+          image: 'https://placehold.co/400x300/111827/FFFFFF?text=TCS+Earnings'
         },
         {
           id: '3',
-          headline: 'Tesla Beats Quarterly Delivery Estimates Despite China Slowdown',
-          summary: 'Tesla delivered more vehicles than expected in Q2, defying concerns about weakening demand in China.',
-          source: 'Reuters',
+          headline: 'Reliance Industries Plans Major Green Energy Investment',
+          summary: 'Reliance Industries announced a massive investment in renewable energy and green hydrogen, signaling a strategic shift.',
+          source: 'Business Standard',
           datetime: new Date(),
           url: '#',
-          related: 'TSLA',
-          categories: ['STOCKS', 'AUTOMOTIVE'],
-          image: 'https://placehold.co/400x300/111827/FFFFFF?text=Tesla'
+          related: 'RELIANCE.NS',
+          categories: ['STOCKS', 'ENERGY'],
+          image: 'https://placehold.co/400x300/111827/FFFFFF?text=Reliance+Green+Energy'
         },
         {
           id: '4',
@@ -555,20 +507,20 @@ const fetchLatestNews = async () => {
         },
         {
           id: '5',
-          headline: 'Euro Weakens Against Dollar Following ECB Policy Meeting',
-          summary: 'The Euro fell against the US Dollar after the European Central Bank signaled a cautious approach to further interest rate hikes.',
-          source: 'CNBC',
+          headline: 'Rupee Strengthens Against Dollar on Strong FII Inflows',
+          summary: 'The Indian rupee gained against the US Dollar as foreign institutional investors increased their equity allocations to India.',
+          source: 'Livemint',
           datetime: new Date(),
           url: '#',
-          related: 'EUR/USD',
+          related: 'USD/INR',
           categories: ['FOREX', 'ECONOMY'],
-          image: 'https://placehold.co/400x300/111827/FFFFFF?text=Euro+Dollar'
+          image: 'https://placehold.co/400x300/111827/FFFFFF?text=Rupee+Dollar'
         },
         {
           id: '6',
           headline: 'Gold Prices Hit Record High on Geopolitical Tensions',
           summary: 'Safe-haven demand pushed gold prices to an all-time high as geopolitical tensions escalated in the Middle East.',
-          source: 'Financial Times',
+          source: 'Economic Times',
           datetime: new Date(),
           url: '#',
           related: 'GOLD',
@@ -588,14 +540,14 @@ const fetchLatestNews = async () => {
         },
         {
           id: '8',
-          headline: 'US Inflation Rate Falls to 3.7%, Below Expectations',
-          summary: 'The latest Consumer Price Index report shows inflation cooling more than expected, raising hopes for earlier Fed rate cuts.',
-          source: 'Wall Street Journal',
+          headline: 'India CPI Inflation Falls to 5.1%, Below Expectations',
+          summary: 'The latest CPI data shows inflation cooling more than expected, raising hopes for an earlier RBI rate cut.',
+          source: 'Moneycontrol',
           datetime: new Date(),
           url: '#',
-          related: 'US_CPI',
+          related: 'IN_CPI',
           categories: ['ECONOMY', 'MARKET'],
-          image: 'https://placehold.co/400x300/111827/FFFFFF?text=Inflation+Data'
+          image: 'https://placehold.co/400x300/111827/FFFFFF?text=India+CPI+Data'
         },
         {
           id: '9',
@@ -610,29 +562,25 @@ const fetchLatestNews = async () => {
         },
         {
           id: '10',
-          headline: 'Amazon Expands AWS with New AI Services',
-          summary: 'Amazon Web Services announced a suite of new AI tools for businesses, boosting its cloud computing offerings.',
-          source: 'TechCrunch',
+          headline: 'HDFC Bank Posts Record Quarterly Profit on Strong Loan Growth',
+          summary: 'HDFC Bank reported its highest-ever quarterly profit, driven by robust retail and corporate loan growth.',
+          source: 'Business Standard',
           datetime: new Date(),
           url: '#',
-          related: 'AMZN',
-          categories: ['STOCKS', 'TECHNOLOGY'],
-          image: 'https://placehold.co/400x300/111827/FFFFFF?text=Amazon+Cloud'
+          related: 'HDFCBANK.NS',
+          categories: ['STOCKS', 'MARKET'],
+          image: 'https://placehold.co/400x300/111827/FFFFFF?text=HDFC+Bank'
         },
       ];
       
-      // Format dates for displaying relative time
       mockNews.forEach(news => {
-        // Add a random offset to make news appear from different times
         const randomHours = Math.floor(Math.random() * 10);
         news.datetime = new Date(Date.now() - randomHours * 3600000);
         news.time = getRelativeTime(news.datetime);
       });
       
-      // Update cache
       dataCache.news = mockNews;
-      
-      // Broadcast news using enhanced method
+
       if (wsServer) {
         wsServer.broadcastNewsUpdate(mockNews);
       }
@@ -642,7 +590,6 @@ const fetchLatestNews = async () => {
   }
 };
 
-// Helper function to format date as relative time
 const getRelativeTime = (date) => {
   const now = new Date();
   const diffInSeconds = Math.floor((now - date) / 1000);
@@ -661,17 +608,16 @@ const getRelativeTime = (date) => {
   }
 };
 
-// Get historical chart data for a symbol
+
 const getChartData = async (symbol, timeframe = '1d') => {
   try {
     const cacheKey = `${symbol}-${timeframe}`;
     
-    // Check cache first
     if (dataCache.charts.has(cacheKey)) {
       return dataCache.charts.get(cacheKey);
     }
     
-    if (finnhubClient) {
+    if (useRealAPI) {
       // Implementation with real API
       // TODO: Implement real API calls when API key is available
     } else {
@@ -691,20 +637,19 @@ const getChartData = async (symbol, timeframe = '1d') => {
   }
 };
 
-// Helper function to convert timeframe to resolution
 const timeframeToResolution = (timeframe) => {
   switch (timeframe) {
-    case '1d': return '5'; // 5 minutes
-    case '1w': return '30'; // 30 minutes
-    case '1m': return 'D'; // 1 day
-    case '3m': return 'D'; // 1 day
-    case '1y': return 'W'; // 1 week
-    case 'all': return 'M'; // 1 month
-    default: return 'D'; // Default to daily
+    case '1d': return '5'; 
+    case '1w': return '30'; 
+    case '1m': return 'D'; 
+    case '3m': return 'D'; 
+    case '1y': return 'W'; 
+    case 'all': return 'M'; 
+    default: return 'D'; 
   }
 };
 
-// Helper function to calculate time range based on timeframe
+// calculate time range based on timeframe
 const calculateTimeRange = (timeframe) => {
   const to = moment().unix();
   let from;
@@ -744,7 +689,6 @@ const generateMockChartData = (symbol, from, to, resolution) => {
     basePrice = mockStock.currentPrice;
   }
   
-  // Determine data points based on resolution and time range
   let interval;
   let dataPoints;
   
@@ -752,17 +696,17 @@ const generateMockChartData = (symbol, from, to, resolution) => {
     case '5': // 5 minutes
       interval = 300; // 5 minutes in seconds
       break;
-    case '30': // 30 minutes
-      interval = 1800; // 30 minutes in seconds
+    case '30': 
+      interval = 1800; 
       break;
-    case 'D': // 1 day
-      interval = 86400; // 1 day in seconds
+    case 'D': 
+      interval = 86400; 
       break;
-    case 'W': // 1 week
-      interval = 604800; // 1 week in seconds
+    case 'W': 
+      interval = 604800; 
       break;
-    case 'M': // 1 month
-      interval = 2592000; // 30 days in seconds
+    case 'M': 
+      interval = 2592000; 
       break;
     default:
       interval = 86400; // Default to daily
@@ -809,198 +753,287 @@ const generateMockChartData = (symbol, from, to, resolution) => {
   };
 };
 
-// Get all current market indices
+// Get all Indian market indices
+const getAllIndianIndices = () => {
+  return Array.from(dataCache.indices.values()).filter(index => 
+    ['^NSEI', '^BSESN', '^NSEBANK'].includes(index.symbol)
+  );
+};
+
 const getAllMarketIndices = () => {
   return Array.from(dataCache.indices.values());
 };
 
-// Get all tracked symbols with current data
 const getAllStocks = () => {
   return Array.from(dataCache.symbols.values());
 };
 
-// Get all forex pairs
 const getAllForexPairs = () => {
   return Array.from(dataCache.forex.values());
 };
 
-// Get all cryptocurrencies
 const getAllCryptocurrencies = () => {
   return Array.from(dataCache.crypto.values());
 };
 
-// Get all commodities
 const getAllCommodities = () => {
   return Array.from(dataCache.commodities.values());
 };
 
-// Get all economic indicators
 const getAllEconomicIndicators = () => {
   return Array.from(dataCache.economy.values());
 };
 
-// Get latest news
 const getLatestNews = (category = null) => {
-  // If no category specified, return all news
   if (!category) return dataCache.news;
   
-  // Filter news by category
   return dataCache.news.filter(news => 
     news.categories && news.categories.includes(category)
   );
 };
 
-// Get news for a specific symbol
 const getNewsForSymbol = (symbol) => {
   return dataCache.news.filter(news => news.related === symbol);
 };
 
-// Update forex pairs with small random changes for mock data
 const updateForexPairs = async () => {
   try {
-    if (finnhubClient) {
-      // Implementation with real API
-      // TODO: Implement real API calls when API key is available
-    } else {
-      // Update mock data with random changes
-      mockForexPairs.forEach(pair => {
-        // Forex rates typically move in small increments
-        const randomChange = (Math.random() * 2 - 1) * (pair.rate * 0.0008); // Random ±0.08% change
-        const oldRate = pair.rate;
-        pair.rate = parseFloat((oldRate + randomChange).toFixed(4));
-        pair.change = parseFloat((pair.rate - (oldRate - pair.change)).toFixed(4));
-        pair.percentChange = parseFloat(((pair.change / (oldRate - pair.change)) * 100).toFixed(2));
-        
-        // Update bid/ask
-        const spread = 0.0004; // Typical small spread
-        pair.bid = parseFloat((pair.rate - spread / 2).toFixed(4));
-        pair.ask = parseFloat((pair.rate + spread / 2).toFixed(4));
-        
-        // Update high/low if needed
-        if (pair.rate > pair.high24h) pair.high24h = pair.rate;
-        if (pair.rate < pair.low24h) pair.low24h = pair.rate;
-        
-        pair.lastUpdated = new Date();
-        
-        // Update cache
-        dataCache.forex.set(pair.symbol, pair);
-        
-        // Broadcast update via websocket with enhanced change tracking
-        if (wsServer) {
-          wsServer.broadcastForexUpdate(pair.symbol, pair);
+    if (useRealAPI) {
+      let successCount = 0;
+
+      for (const [pairSymbol, meta] of Object.entries(forexSymbolMap)) {
+        try {
+          const q = await yahooFinance.quote(meta.yahooSymbol);
+          if (!q || !q.regularMarketPrice) continue;
+
+          const rate = q.regularMarketPrice;
+          const previousClose = q.regularMarketPreviousClose ?? rate;
+          const change = q.regularMarketChange ?? (rate - previousClose);
+          const percentChange = q.regularMarketChangePercent ?? (previousClose ? ((change / previousClose) * 100) : 0);
+
+          const spread = rate * 0.0003;
+          const updated = {
+            symbol: pairSymbol,
+            baseCurrency: meta.baseCurrency,
+            quoteCurrency: meta.quoteCurrency,
+            rate: parseFloat(rate.toFixed(4)),
+            change: parseFloat(change.toFixed(4)),
+            percentChange: parseFloat(percentChange.toFixed(2)),
+            bid: parseFloat((rate - spread / 2).toFixed(4)),
+            ask: parseFloat((rate + spread / 2).toFixed(4)),
+            high24h: parseFloat((q.regularMarketDayHigh ?? rate).toFixed(4)),
+            low24h: parseFloat((q.regularMarketDayLow ?? rate).toFixed(4)),
+            lastUpdated: new Date()
+          };
+
+          dataCache.forex.set(pairSymbol, updated);
+          successCount++;
+
+          if (wsServer) {
+            wsServer.broadcastForexUpdate(pairSymbol, updated);
+          }
+        } catch (err) {
+          console.error(`[Forex] Yahoo Finance error for ${meta.yahooSymbol}:`, err.message);
         }
-      });
+      }
+
+      if (successCount > 0) {
+        console.log(`[Forex] Real data fetched for ${successCount}/${Object.keys(forexSymbolMap).length} pairs`);
+        return;
+      }
+      console.warn('[Forex] All real API calls failed — falling back to mock data');
     }
+
+    // MOCK FALLBACK MODE
+    mockForexPairs.forEach(pair => {
+      const randomChange = (Math.random() * 2 - 1) * (pair.rate * 0.0008);
+      const oldRate = pair.rate;
+      pair.rate = parseFloat((oldRate + randomChange).toFixed(4));
+      pair.change = parseFloat((pair.rate - (oldRate - pair.change)).toFixed(4));
+      pair.percentChange = parseFloat(((pair.change / (oldRate - pair.change)) * 100).toFixed(2));
+
+      const spread = 0.0004;
+      pair.bid = parseFloat((pair.rate - spread / 2).toFixed(4));
+      pair.ask = parseFloat((pair.rate + spread / 2).toFixed(4));
+
+      if (pair.rate > pair.high24h) pair.high24h = pair.rate;
+      if (pair.rate < pair.low24h) pair.low24h = pair.rate;
+
+      pair.lastUpdated = new Date();
+
+      dataCache.forex.set(pair.symbol, pair);
+
+      if (wsServer) {
+        wsServer.broadcastForexUpdate(pair.symbol, pair);
+      }
+    });
   } catch (error) {
-    console.error('Error updating forex pairs:', error);
+    console.error('Error updating forex pairs:', error.message || error);
   }
 };
 
-// Update cryptocurrencies with small random changes for mock data
 const updateCryptocurrencies = async () => {
   try {
-    if (finnhubClient) {
-      // Implementation with real API
-      // TODO: Implement real API calls when API key is available
-    } else {
-      // Update mock data with random changes
-      mockCryptocurrencies.forEach(crypto => {
-        // Crypto can have more volatility
-        const randomChange = (Math.random() * 2 - 1) * (crypto.price * 0.01); // Random ±1% change
-        const oldPrice = crypto.price;
-        crypto.price = parseFloat((oldPrice + randomChange).toFixed(2));
-        crypto.change = parseFloat((crypto.price - (oldPrice - crypto.change)).toFixed(2));
-        crypto.percentChange = parseFloat(((crypto.change / (oldPrice - crypto.change)) * 100).toFixed(2));
-        
-        // Update volume with a small change
-        const volumeChange = Math.random() * 0.02 - 0.01; // -1% to +1%
-        crypto.volume24h = Math.round(crypto.volume24h * (1 + volumeChange));
-        
-        // Update market cap based on price
-        const priceRatio = crypto.price / oldPrice;
-        crypto.marketCap = Math.round(crypto.marketCap * priceRatio);
-        
-        // Update high/low if needed
-        if (crypto.price > crypto.high24h) crypto.high24h = crypto.price;
-        if (crypto.price < crypto.low24h) crypto.low24h = crypto.price;
-        
-        crypto.lastUpdated = new Date();
-        
-        // Update cache
-        dataCache.crypto.set(crypto.symbol, crypto);
-        
-        // Broadcast update via websocket with enhanced change tracking
-        if (wsServer) {
-          wsServer.broadcastCryptoUpdate(crypto.symbol, crypto);
+    if (useRealAPI) {
+      let successCount = 0;
+
+      for (const [pairSymbol, meta] of Object.entries(cryptoSymbolMap)) {
+        try {
+          const q = await yahooFinance.quote(meta.yahooSymbol);
+          if (!q || !q.regularMarketPrice) continue;
+
+          const price = q.regularMarketPrice;
+          const previousClose = q.regularMarketPreviousClose ?? price;
+          const change = q.regularMarketChange ?? (price - previousClose);
+          const percentChange = q.regularMarketChangePercent ?? (previousClose ? ((change / previousClose) * 100) : 0);
+
+          const updated = {
+            symbol: pairSymbol,
+            name: meta.name,
+            price: parseFloat(price.toFixed(2)),
+            change: parseFloat(change.toFixed(2)),
+            percentChange: parseFloat(percentChange.toFixed(2)),
+            volume24h: q.regularMarketVolume ?? 0,
+            marketCap: q.marketCap ?? 0,
+            high24h: parseFloat((q.regularMarketDayHigh ?? price).toFixed(2)),
+            low24h: parseFloat((q.regularMarketDayLow ?? price).toFixed(2)),
+            lastUpdated: new Date()
+          };
+
+          dataCache.crypto.set(pairSymbol, updated);
+          successCount++;
+
+          if (wsServer) {
+            wsServer.broadcastCryptoUpdate(pairSymbol, updated);
+          }
+        } catch (err) {
+          console.error(`[Crypto] Yahoo Finance error for ${meta.yahooSymbol}:`, err.message);
         }
-      });
+      }
+
+      if (successCount > 0) {
+        console.log(`[Crypto] Real data fetched for ${successCount}/${Object.keys(cryptoSymbolMap).length} cryptocurrencies`);
+        return;
+      }
+      console.warn('[Crypto] All real API calls failed — falling back to mock data');
     }
+
+    // MOCK FALLBACK MODE 
+    mockCryptocurrencies.forEach(crypto => {
+      const randomChange = (Math.random() * 2 - 1) * (crypto.price * 0.01);
+      const oldPrice = crypto.price;
+      crypto.price = parseFloat((oldPrice + randomChange).toFixed(2));
+      crypto.change = parseFloat((crypto.price - (oldPrice - crypto.change)).toFixed(2));
+      crypto.percentChange = parseFloat(((crypto.change / (oldPrice - crypto.change)) * 100).toFixed(2));
+
+      const volumeChange = Math.random() * 0.02 - 0.01;
+      crypto.volume24h = Math.round(crypto.volume24h * (1 + volumeChange));
+
+      const priceRatio = crypto.price / oldPrice;
+      crypto.marketCap = Math.round(crypto.marketCap * priceRatio);
+
+      if (crypto.price > crypto.high24h) crypto.high24h = crypto.price;
+      if (crypto.price < crypto.low24h) crypto.low24h = crypto.price;
+
+      crypto.lastUpdated = new Date();
+
+      dataCache.crypto.set(crypto.symbol, crypto);
+
+      if (wsServer) {
+        wsServer.broadcastCryptoUpdate(crypto.symbol, crypto);
+      }
+    });
   } catch (error) {
-    console.error('Error updating cryptocurrencies:', error);
+    console.error('Error updating cryptocurrencies:', error.message || error);
   }
 };
 
-// Update commodities with small random changes for mock data
 const updateCommodities = async () => {
   try {
-    if (finnhubClient) {
-      // Implementation with real API
-      // TODO: Implement real API calls when API key is available
-    } else {
-      // Update mock data with random changes
-      mockCommodities.forEach(commodity => {
-        // Commodities typically move less than stocks
-        const randomChange = (Math.random() * 2 - 1) * (commodity.price * 0.003); // Random ±0.3% change
-        const oldPrice = commodity.price;
-        commodity.price = parseFloat((oldPrice + randomChange).toFixed(2));
-        commodity.change = parseFloat((commodity.price - (oldPrice - commodity.change)).toFixed(2));
-        commodity.percentChange = parseFloat(((commodity.change / (oldPrice - commodity.change)) * 100).toFixed(2));
-        
-        commodity.lastUpdated = new Date();
-        
-        // Update cache
-        dataCache.commodities.set(commodity.symbol, commodity);
-        
-        // Broadcast update via websocket with enhanced change tracking
-        if (wsServer) {
-          wsServer.broadcastCommodityUpdate(commodity.symbol, commodity);
+    if (useRealAPI) {
+      let successCount = 0;
+
+      for (const [commoditySymbol, meta] of Object.entries(commoditySymbolMap)) {
+        try {
+          const q = await yahooFinance.quote(meta.yahooSymbol);
+          if (!q || !q.regularMarketPrice) continue;
+
+          const price = q.regularMarketPrice;
+          const previousClose = q.regularMarketPreviousClose ?? price;
+          const change = q.regularMarketChange ?? (price - previousClose);
+          const percentChange = q.regularMarketChangePercent ?? (previousClose ? ((change / previousClose) * 100) : 0);
+
+          const updated = {
+            symbol: commoditySymbol,
+            name: meta.name,
+            price: parseFloat(price.toFixed(2)),
+            change: parseFloat(change.toFixed(2)),
+            percentChange: parseFloat(percentChange.toFixed(2)),
+            high24h: parseFloat((q.regularMarketDayHigh ?? price).toFixed(2)),
+            low24h: parseFloat((q.regularMarketDayLow ?? price).toFixed(2)),
+            unit: meta.unit,
+            lastUpdated: new Date()
+          };
+
+          dataCache.commodities.set(commoditySymbol, updated);
+          successCount++;
+
+          if (wsServer) {
+            wsServer.broadcastCommodityUpdate(commoditySymbol, updated);
+          }
+        } catch (err) {
+          console.error(`[Commodity] Yahoo Finance error for ${meta.yahooSymbol}:`, err.message);
         }
-      });
+      }
+
+      if (successCount > 0) {
+        console.log(`[Commodity] Real data fetched for ${successCount}/${Object.keys(commoditySymbolMap).length} commodities`);
+        return;
+      }
+      console.warn('[Commodity] All real API calls failed — falling back to mock data');
     }
+
+    // MOCK FALLBACK MODE 
+    mockCommodities.forEach(commodity => {
+      const randomChange = (Math.random() * 2 - 1) * (commodity.price * 0.003);
+      const oldPrice = commodity.price;
+      commodity.price = parseFloat((oldPrice + randomChange).toFixed(2));
+      commodity.change = parseFloat((commodity.price - (oldPrice - commodity.change)).toFixed(2));
+      commodity.percentChange = parseFloat(((commodity.change / (oldPrice - commodity.change)) * 100).toFixed(2));
+
+      commodity.lastUpdated = new Date();
+
+      dataCache.commodities.set(commodity.symbol, commodity);
+
+      if (wsServer) {
+        wsServer.broadcastCommodityUpdate(commodity.symbol, commodity);
+      }
+    });
   } catch (error) {
-    console.error('Error updating commodities:', error);
+    console.error('Error updating commodities:', error.message || error);
   }
 };
 
-// Update economic indicators (these change infrequently in real world)
 const updateEconomicIndicators = async () => {
   try {
-    if (finnhubClient) {
-      // Implementation with real API
-      // TODO: Implement real API calls when API key is available
-    } else {
-      // Economic indicators change rarely, so we're just simulating occasional small changes
-      mockEconomicIndicators.forEach(indicator => {
-        // Only change with 20% probability to simulate infrequent updates
-        if (Math.random() < 0.2) {
-          const randomChange = (Math.random() * 2 - 1) * 0.1; // Random ±0.1 unit change
-          const oldValue = indicator.value;
-          indicator.value = parseFloat((oldValue + randomChange).toFixed(1));
-          
-          // Update previous value when there's a change
-          indicator.previousValue = oldValue;
-          indicator.lastUpdated = new Date();
-          
-          // Update cache
-          dataCache.economy.set(indicator.symbol, indicator);
-          
-          // Broadcast update via websocket with enhanced change tracking
-          if (wsServer) {
-            wsServer.broadcastEconomyUpdate(indicator.symbol, indicator);
-          }
+    // Economic indicators change rarely, so we simulate occasional small changes
+    mockEconomicIndicators.forEach(indicator => {
+      // Only change with 20% probability to simulate infrequent updates
+      if (Math.random() < 0.2) {
+        const randomChange = (Math.random() * 2 - 1) * 0.1;
+        const oldValue = indicator.value;
+        indicator.value = parseFloat((oldValue + randomChange).toFixed(1));
+
+        indicator.previousValue = oldValue;
+        indicator.lastUpdated = new Date();
+
+        dataCache.economy.set(indicator.symbol, indicator);
+
+        if (wsServer) {
+          wsServer.broadcastEconomyUpdate(indicator.symbol, indicator);
         }
-      });
-    }
+      }
+    });
   } catch (error) {
     console.error('Error updating economic indicators:', error);
   }
@@ -1010,6 +1043,7 @@ export {
   initializeMarketData,
   getChartData,
   getAllMarketIndices,
+  getAllIndianIndices,
   getAllStocks,
   getAllForexPairs,
   getAllCryptocurrencies,

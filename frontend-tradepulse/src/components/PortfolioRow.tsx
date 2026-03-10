@@ -41,26 +41,26 @@ export default function PortfolioRow({
       <td className="px-4 py-4 text-sm font-medium text-white">{symbol}</td>
       <td className="px-4 py-4 text-sm text-gray-300">{name}</td>
       <td className="px-4 py-4 text-right">{shares}</td>
-      <td className="px-4 py-4 text-right">${averagePrice.toLocaleString('en-US', {
+      <td className="px-4 py-4 text-right">₹{averagePrice.toLocaleString('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}
 </td>
 
-      <td className="px-4 py-4 text-right">${currentPrice.toLocaleString('en-US', {
+      <td className="px-4 py-4 text-right">₹{currentPrice.toLocaleString('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}
 </td>
 
-      <td className="px-4 py-4 text-right">${value.toLocaleString('en-US', {
+      <td className="px-4 py-4 text-right">₹{value.toLocaleString('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}
 </td>
 
       <td className={`px-4 py-4 text-right ${profit>=0?'text-green-500':'text-red-500'}`}>
-        ${profit.toLocaleString('en-US', {
+        ₹{profit.toLocaleString('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}

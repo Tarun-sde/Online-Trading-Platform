@@ -16,9 +16,9 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 export default function Dashboard() {
   // Sample portfolio data
 const holdings = [
-  { symbol: "AAPL", shares: 25, avg: 165.23 },
-  { symbol: "MSFT", shares: 15, avg: 342.67 },
-  { symbol: "TSLA", shares: 20, avg: 242.15 },
+  { symbol: "RELIANCE.NS", shares: 25, avg: 2456.75 },
+  { symbol: "TCS.NS", shares: 15, avg: 3856.20 },
+  { symbol: "HDFCBANK.NS", shares: 20, avg: 1689.30 }
 ];
 
 const [prices, setPrices] = useState<Record<string, any>>({});
@@ -75,14 +75,14 @@ const portfolioData = useMemo(() => {
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-10">
           <div className="mt-6 mb-8">
             <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="text-gray-400 mt-2">Monitor your portfolio and market performance</p>
+            <p className="text-gray-400 mt-2">Monitor your Indian market portfolio and performance</p>
           </div>
           
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <StatsCard
               title="Portfolio Value"
-              value={`$${portfolioData.totalValue.toLocaleString('en-US', {
+              value={`₹${portfolioData.totalValue.toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}`}
@@ -93,7 +93,7 @@ const portfolioData = useMemo(() => {
             />
             <StatsCard
               title="Daily Change"
-              value={`$${Math.abs(portfolioData.dayChange).toLocaleString('en-US', {
+              value={`₹${Math.abs(portfolioData.dayChange).toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}`}
@@ -104,7 +104,7 @@ const portfolioData = useMemo(() => {
             />
             <StatsCard
               title="Weekly Change"
-              value={`$${Math.abs(portfolioData.weeklyChange).toLocaleString('en-US', {
+              value={`₹${Math.abs(portfolioData.weeklyChange).toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}`}
@@ -115,7 +115,7 @@ const portfolioData = useMemo(() => {
             />
             <StatsCard
               title="Monthly Change"
-              value={`$${Math.abs(portfolioData.monthlyChange).toLocaleString('en-US', {
+              value={`₹${Math.abs(portfolioData.monthlyChange).toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}`}

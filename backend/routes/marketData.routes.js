@@ -5,6 +5,7 @@ import {
   getAllMarketIndices, 
   getChartData,
   getAllForexPairs,
+  getAllIndianIndices,
   getAllCryptocurrencies,
   getAllCommodities,
   getAllEconomicIndicators,
@@ -20,6 +21,16 @@ import {
 router.get('/stocks', (req, res) => {
   const stocks = getAllStocks();
   res.json(stocks);
+});
+
+/**
+ * @route   GET /api/market-data/indian-indices
+ * @desc    Get all Indian market indices (NIFTY 50, SENSEX, NIFTY BANK)
+ * @access  Public
+ */
+router.get('/indian-indices', (req, res) => {
+  const indices = getAllIndianIndices();
+  res.json(indices);
 });
 
 /**
