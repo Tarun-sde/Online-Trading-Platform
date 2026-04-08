@@ -4,6 +4,7 @@
  */
 
 import moment from 'moment';
+import crypto from 'crypto';
 import YahooFinance from 'yahoo-finance2';
 const yahooFinance = new YahooFinance();
 import { setupWebSocketServer } from '../utils/websocket.js';
@@ -18,6 +19,56 @@ const dataCache = {
   economy: new Map(),    // Economic indicators
   charts: new Map(),     // Chart data
   news: []               // News
+};
+
+// News caching system (5-minute TTL)
+const newsCache = {
+  data: {},        // Cached news by category
+  lastFetch: {}    // Last fetch timestamp by category
+};
+const NEWS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+// Category to Yahoo Finance search queries mapping
+const categorySearchQueries = {
+  MARKET: ['NIFTY', 'SENSEX', 'Indian stock market'],
+  STOCKS: ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS'],
+  CRYPTO: ['Bitcoin', 'Ethereum', 'cryptocurrency'],
+  FOREX: ['USD INR', 'forex India', 'rupee dollar'],
+  COMMODITIES: ['gold price', 'crude oil', 'silver'],
+  ECONOMY: ['RBI', 'India GDP', 'inflation India'],
+  TECHNOLOGY: ['Indian IT', 'tech stocks India'],
+  ENERGY: ['oil gas India', 'renewable energy India'],
+  AUTOMOTIVE: ['auto stocks India', 'Tata Motors', 'Maruti']
+};
+
+// Default categories for news items based on search query
+const queryCategoryMap = {
+  'NIFTY': ['MARKET', 'STOCKS'],
+  'SENSEX': ['MARKET', 'STOCKS'],
+  'Indian stock market': ['MARKET'],
+  'RELIANCE.NS': ['STOCKS', 'ENERGY'],
+  'TCS.NS': ['STOCKS', 'TECHNOLOGY'],
+  'INFY.NS': ['STOCKS', 'TECHNOLOGY'],
+  'HDFCBANK.NS': ['STOCKS'],
+  'Bitcoin': ['CRYPTO'],
+  'Ethereum': ['CRYPTO'],
+  'cryptocurrency': ['CRYPTO'],
+  'USD INR': ['FOREX'],
+  'forex India': ['FOREX'],
+  'rupee dollar': ['FOREX'],
+  'gold price': ['COMMODITIES'],
+  'crude oil': ['COMMODITIES', 'ENERGY'],
+  'silver': ['COMMODITIES'],
+  'RBI': ['ECONOMY', 'MARKET'],
+  'India GDP': ['ECONOMY'],
+  'inflation India': ['ECONOMY'],
+  'Indian IT': ['TECHNOLOGY', 'STOCKS'],
+  'tech stocks India': ['TECHNOLOGY', 'STOCKS'],
+  'oil gas India': ['ENERGY', 'COMMODITIES'],
+  'renewable energy India': ['ENERGY'],
+  'auto stocks India': ['AUTOMOTIVE', 'STOCKS'],
+  'Tata Motors': ['AUTOMOTIVE', 'STOCKS'],
+  'Maruti': ['AUTOMOTIVE', 'STOCKS']
 };
 
 // Whether to use Yahoo Finance real API (default true — fallback to mock per-request on failure)
@@ -306,8 +357,8 @@ const startPeriodicUpdates = () => {
   // Update economic indicators every hour (these don't change often)
   setInterval(updateEconomicIndicators, 3600000);
   
-  // Update news every 15 minutes
-  setInterval(fetchLatestNews, 900000);
+  // Update news every 5 minutes (matches cache TTL)
+  setInterval(fetchLatestNews, 300000);
   
   // Initial updates
   updateStockPrices();
@@ -452,14 +503,182 @@ const updateMarketIndices = async () => {
   }
 };
 
+/**
+ * Generate a unique ID from a URL using MD5 hash
+ * @param {string} url - The URL to hash
+ * @returns {string} - A unique ID
+ */
+const generateNewsId = (url) => {
+  if (!url) return crypto.randomUUID();
+  return crypto.createHash('md5').update(url).digest('hex').substring(0, 16);
+};
+
+/**
+ * Map Yahoo Finance news item to frontend NewsItem format
+ * @param {Object} yahooNews - Raw news item from Yahoo Finance
+ * @param {string[]} categories - Categories for this news item
+ * @returns {Object} - Formatted NewsItem
+ */
+const mapYahooNewsToNewsItem = (yahooNews, categories = ['MARKET']) => {
+  // Extract image URL from thumbnails if available
+  let imageUrl = null;
+  if (yahooNews.thumbnail && yahooNews.thumbnail.resolutions && yahooNews.thumbnail.resolutions.length > 0) {
+    // Get the highest resolution image
+    const resolutions = yahooNews.thumbnail.resolutions;
+    imageUrl = resolutions[resolutions.length - 1].url || resolutions[0].url;
+  }
+
+  // Convert providerPublishTime (Unix timestamp) to Date
+  let datetime = new Date();
+  if (yahooNews.providerPublishTime) {
+    datetime = new Date(yahooNews.providerPublishTime * 1000);
+  }
+
+  return {
+    id: generateNewsId(yahooNews.link || yahooNews.uuid),
+    headline: yahooNews.title || 'No title available',
+    summary: yahooNews.title || '', // Yahoo search doesn't always provide summary
+    source: yahooNews.publisher || 'Unknown',
+    datetime: datetime,
+    url: yahooNews.link || '#',
+    image: imageUrl,
+    categories: categories,
+    related: categories[0] || 'MARKET'
+  };
+};
+
+/**
+ * Fetch market news for a specific category using yahoo-finance2
+ * Implements caching with 5-minute TTL
+ * @param {string} category - News category (MARKET, STOCKS, CRYPTO, etc.)
+ * @returns {Promise<Array>} - Array of formatted news items
+ */
+const fetchMarketNews = async (category = 'MARKET') => {
+  try {
+    const now = Date.now();
+    const normalizedCategory = category.toUpperCase();
+    
+    // Check cache first
+    if (
+      newsCache.data[normalizedCategory] &&
+      newsCache.lastFetch[normalizedCategory] &&
+      (now - newsCache.lastFetch[normalizedCategory]) < NEWS_CACHE_TTL
+    ) {
+      console.log(`[News] Returning cached news for category: ${normalizedCategory}`);
+      return newsCache.data[normalizedCategory];
+    }
+
+    console.log(`[News] Fetching fresh news for category: ${normalizedCategory}`);
+
+    // Get search queries for this category
+    const queries = categorySearchQueries[normalizedCategory] || categorySearchQueries.MARKET;
+    const allNews = [];
+    const seenUrls = new Set(); // To avoid duplicates
+
+    // Fetch news from each query
+    for (const query of queries) {
+      try {
+        const searchResult = await yahooFinance.search(query, { newsCount: 10 });
+        
+        if (searchResult && searchResult.news && searchResult.news.length > 0) {
+          // Map and add news items
+          for (const newsItem of searchResult.news) {
+            // Skip if we already have this news (by URL)
+            if (newsItem.link && seenUrls.has(newsItem.link)) {
+              continue;
+            }
+            
+            if (newsItem.link) {
+              seenUrls.add(newsItem.link);
+            }
+
+            // Get categories for this query
+            const categories = queryCategoryMap[query] || [normalizedCategory];
+            
+            // Map to frontend format
+            const mappedNews = mapYahooNewsToNewsItem(newsItem, categories);
+            allNews.push(mappedNews);
+          }
+        }
+      } catch (queryError) {
+        console.error(`[News] Error fetching news for query "${query}":`, queryError.message);
+        // Continue with other queries even if one fails
+      }
+    }
+
+    // Sort by datetime (newest first)
+    allNews.sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime());
+
+    // Limit to 20 items
+    const limitedNews = allNews.slice(0, 20);
+
+    // Update cache
+    newsCache.data[normalizedCategory] = limitedNews;
+    newsCache.lastFetch[normalizedCategory] = now;
+
+    console.log(`[News] Fetched ${limitedNews.length} news items for category: ${normalizedCategory}`);
+
+    return limitedNews;
+  } catch (error) {
+    console.error('[News] Error in fetchMarketNews:', error.message);
+    
+    // Return cached data if available, even if expired
+    if (newsCache.data[category]) {
+      console.log(`[News] Returning stale cached news for category: ${category}`);
+      return newsCache.data[category];
+    }
+    
+    // Return empty array if no cache available
+    return [];
+  }
+};
+
 // Fetch latest news with categories for different asset classes
 const fetchLatestNews = async () => {
   try {
     if (useRealAPI) {
-      // Implementation with real API
-      // TODO: Implement real API calls when API key is available
+      // Fetch news for multiple categories
+      const categories = ['MARKET', 'STOCKS', 'ECONOMY'];
+      const allNews = [];
+      const seenIds = new Set();
+
+      for (const category of categories) {
+        try {
+          const categoryNews = await fetchMarketNews(category);
+          
+          // Add unique news items
+          for (const newsItem of categoryNews) {
+            if (!seenIds.has(newsItem.id)) {
+              seenIds.add(newsItem.id);
+              allNews.push(newsItem);
+            }
+          }
+        } catch (categoryError) {
+          console.error(`[News] Error fetching ${category} news:`, categoryError.message);
+        }
+      }
+
+      // Sort by datetime and limit
+      allNews.sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime());
+      const limitedNews = allNews.slice(0, 20);
+
+      // Add relative time
+      limitedNews.forEach(news => {
+        news.time = getRelativeTime(news.datetime);
+      });
+
+      // Update data cache
+      dataCache.news = limitedNews;
+
+      // Broadcast via WebSocket
+      if (wsServer) {
+        wsServer.broadcastNewsUpdate(limitedNews);
+      }
+
+      console.log(`[News] Updated news cache with ${limitedNews.length} items (real API)`);
+      return limitedNews;
     } else {
-      // Use mock news with categories
+      // Fallback to mock news with categories
       const mockNews = [
         {
           id: '1',
@@ -784,12 +1003,29 @@ const getAllEconomicIndicators = () => {
   return Array.from(dataCache.economy.values());
 };
 
-const getLatestNews = (category = null) => {
-  if (!category) return dataCache.news;
-  
-  return dataCache.news.filter(news => 
-    news.categories && news.categories.includes(category)
-  );
+const getLatestNews = async (category = null) => {
+  try {
+    // If no category specified, return all cached news
+    if (!category) {
+      // If cache is empty, try to fetch
+      if (dataCache.news.length === 0) {
+        await fetchLatestNews();
+      }
+      return dataCache.news;
+    }
+
+    // Fetch news for specific category (uses caching internally)
+    const categoryNews = await fetchMarketNews(category);
+    return categoryNews;
+  } catch (error) {
+    console.error('[News] Error in getLatestNews:', error.message);
+    // Fallback to cached data
+    if (!category) return dataCache.news;
+    
+    return dataCache.news.filter(news => 
+      news.categories && news.categories.includes(category)
+    );
+  }
 };
 
 const getNewsForSymbol = (symbol) => {
@@ -1050,5 +1286,6 @@ export {
   getAllCommodities,
   getAllEconomicIndicators,
   getLatestNews,
-  getNewsForSymbol
+  getNewsForSymbol,
+  fetchMarketNews
 }; 

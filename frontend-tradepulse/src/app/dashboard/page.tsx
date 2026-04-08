@@ -14,7 +14,6 @@ import WatchList from '@/components/WatchList';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 export default function Dashboard() {
-  // Sample portfolio data
 const holdings = [
   { symbol: "RELIANCE.NS", shares: 25, avg: 2456.75 },
   { symbol: "TCS.NS", shares: 15, avg: 3856.20 },
