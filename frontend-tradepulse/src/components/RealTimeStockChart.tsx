@@ -26,12 +26,16 @@ const timeRanges = [
 
 // Base prices for mock data
 const BASE_PRICES = {
-  'AAPL': 180,
-  'MSFT': 400,
-  'GOOGL': 140,
-  'AMZN': 170,
-  'TSLA': 190,
-  'DEFAULT': 100
+  'RELIANCE.NS': 2456,
+  'TCS.NS': 3856,
+  'INFY.NS': 1523,
+  'HDFCBANK.NS': 1689,
+  'ICICIBANK.NS': 1123,
+  'SBIN.NS': 679,
+  'ITC.NS': 457,
+  'LT.NS': 3457,
+  'BHARTIARTL.NS': 1235,
+  'DEFAULT': 1000
 };
 
 // Helper function to get deterministic random number
@@ -313,7 +317,7 @@ const RealTimeStockChart = ({
   
   // Format tooltip values
   const formatTooltipValue = (value: string) => {
-    return [`$${parseFloat(value).toFixed(2)}`, 'Price'];
+    return [`\u20B9${parseFloat(value).toFixed(2)}`, 'Price'];
   };
   
   // Format tooltip volume
@@ -345,10 +349,10 @@ const RealTimeStockChart = ({
                     transition={{ duration: 0.5 }}
                     className="text-xl font-bold text-white"
                   >
-                    ${currentPrice.toFixed(2)}
+                    &#8377;{currentPrice.toFixed(2)}
                   </motion.p>
                   <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-                    ${priceChange !== null ? Math.abs(priceChange).toFixed(2) : '0.00'} 
+                    &#8377;{priceChange !== null ? Math.abs(priceChange).toFixed(2) : '0.00'} 
                     ({isPositive ? '+' : '-'}
                     {percentChange !== null ? Math.abs(percentChange).toFixed(2) : '0.00'}%)
                   </p>

@@ -31,8 +31,8 @@ export default function NewsPage() {
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-10">
         <div className="mt-6 mb-8">
-          <h1 className="text-3xl font-bold">Financial News</h1>
-          <p className="text-gray-400 mt-2">Stay updated with the latest market and financial news</p>
+          <h1 className="text-3xl font-bold">Indian Financial News</h1>
+          <p className="text-gray-400 mt-2">Stay updated with the latest Indian market and financial news</p>
         </div>
         
         {/* Search and Categories */}
@@ -84,15 +84,15 @@ export default function NewsPage() {
                     Breaking
                   </span>
                   <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-                    Federal Reserve Holds Interest Rates Steady, Signals Potential Cuts Later This Year
+                    RBI Holds Repo Rate Steady at 6.5%, Signals Potential Easing Later This Year
                   </h2>
                   <p className="text-blue-100 mb-4 line-clamp-3">
-                    The Federal Reserve decided to maintain its benchmark interest rate at the current level today,
-                    but indicated that rate cuts may be on the horizon as inflation continues to moderate and economic
-                    growth remains steady.
+                    The Reserve Bank of India decided to maintain its benchmark repo rate at the current level today,
+                    but indicated that rate cuts may be on the horizon as inflation continues to moderate and GDP
+                    growth remains robust.
                   </p>
                   <div className="flex items-center text-sm text-blue-200">
-                    <span>Financial Times</span>
+                    <span>Economic Times</span>
                     <span className="mx-2">•</span>
                     <span>3 hours ago</span>
                   </div>
@@ -103,8 +103,8 @@ export default function NewsPage() {
                 <div className="md:w-1/3 mt-6 md:mt-0 relative h-48 md:h-auto rounded-lg overflow-hidden">
                   <div 
                     className="absolute inset-0 bg-cover bg-center" 
-                    style={{ 
-                      backgroundImage: "url('https://placehold.co/800x600/111827/FFFFFF?text=Federal+Reserve')",
+                    style={{
+                      backgroundImage: "url('https://placehold.co/800x600/111827/FFFFFF?text=Reserve+Bank+of+India')",
                     }}
                   ></div>
                 </div>

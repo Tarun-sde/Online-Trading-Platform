@@ -13,15 +13,14 @@ interface StockRow {
 }
 
 const initialStocks: StockRow[] = [
-  { id: '1', symbol: 'AAPL', name: 'Apple Inc.', favorite: true },
-  { id: '2', symbol: 'MSFT', name: 'Microsoft Corporation', favorite: true },
-  { id: '3', symbol: 'GOOGL', name: 'Alphabet Inc.', favorite: false },
-  { id: '4', symbol: 'AMZN', name: 'Amazon.com, Inc.', favorite: false },
-  { id: '5', symbol: 'TSLA', name: 'Tesla, Inc.', favorite: false },
+  { id: '1', symbol: 'RELIANCE.NS', name: 'Reliance Industries Ltd.', favorite: true },
+  { id: '2', symbol: 'TCS.NS', name: 'Tata Consultancy Services Ltd.', favorite: true },
+  { id: '3', symbol: 'INFY.NS', name: 'Infosys Ltd.', favorite: false },
+  { id: '4', symbol: 'HDFCBANK.NS', name: 'HDFC Bank Ltd.', favorite: false },
+  { id: '5', symbol: 'ICICIBANK.NS', name: 'ICICI Bank Ltd.', favorite: false }
 ];
 
 
-// ✅ Row component — each row gets its own live stream
 function WatchRow({
   stock,
   onToggle
@@ -56,13 +55,13 @@ function WatchRow({
       </td>
 
       <td className="px-3 py-4 text-sm text-right text-white">
-        ${price.toFixed(2)}
+        ₹{price.toFixed(2)}
       </td>
 
       <td className={`px-3 py-4 text-sm text-right ${
         change >= 0 ? 'text-green-500' : 'text-red-500'
       }`}>
-        ${Math.abs(change).toFixed(2)}
+        ₹{Math.abs(change).toFixed(2)}
       </td>
 
       <td className={`px-3 py-4 text-sm text-right ${

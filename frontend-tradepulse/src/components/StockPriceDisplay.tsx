@@ -88,7 +88,7 @@ const StockPriceDisplay = ({ symbol, name, compact = false }: StockPriceDisplayP
         }}
         transition={{ duration: 0.5 }}
       >
-        ${stockData.currentPrice?.toFixed(2) || "0.00"}
+        ₹{stockData.currentPrice?.toFixed(2) || "0.00"}
       </motion.div>
       
       {/* Change info */}
@@ -102,7 +102,7 @@ const StockPriceDisplay = ({ symbol, name, compact = false }: StockPriceDisplayP
             {changes.priceChange >= 0 ? '▲' : '▼'}
           </span>
           <span className={`${changes.priceChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-            ${Math.abs(changes.priceChange).toFixed(2)} ({Math.abs(changes.pricePercentChange).toFixed(2)}%)
+            ₹{Math.abs(changes.priceChange).toFixed(2)} ({Math.abs(changes.pricePercentChange).toFixed(2)}%)
           </span>
         </div>
       )}

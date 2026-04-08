@@ -18,9 +18,9 @@ export default function Portfolio() {
 
   // ✅ holdings (your real positions)
   const holdings = [
-    { id: "1", symbol: "AAPL", name: "Apple Inc.", shares: 25, averagePrice: 165.23 },
-    { id: "2", symbol: "MSFT", name: "Microsoft Corporation", shares: 15, averagePrice: 342.67 },
-    { id: "3", symbol: "TSLA", name: "Tesla, Inc.", shares: 20, averagePrice: 242.15 },
+    { id: "1", symbol: "RELIANCE.NS", name: "Reliance Industries Ltd.", shares: 25, averagePrice: 2456.75 },
+    { id: "2", symbol: "TCS.NS", name: "Tata Consultancy Services Ltd.", shares: 15, averagePrice: 3856.20 },
+    { id: "3", symbol: "HDFCBANK.NS", name: "HDFC Bank Ltd.", shares: 20, averagePrice: 1689.30 }
   ];
 
   // ✅ live prices pushed from PortfolioRow
@@ -29,8 +29,8 @@ export default function Portfolio() {
   >({});
 
   // ✅ callback from rows
-  const handlePrice = (symbol: string, price: number, prev: number) => {
-    setLivePrices(p => ({ ...p, [symbol]: { price, prev } }));
+  const handlePrice = (symbol: string, price: number, prev?: number) => {
+    setLivePrices(p => ({ ...p, [symbol]: { price, prev: prev ?? price } }));
   };
 
   // ✅ REAL portfolio math
@@ -88,10 +88,10 @@ export default function Portfolio() {
 
             <StatsCard
               title="Portfolio Value"
-              value={`$${portfolioStats.totalValue.toLocaleString('en-US', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})}`}
+              value={`₹${portfolioStats.totalValue.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`}
 
               change={portfolioStats.dayChangePercent}
               trend={trend}
@@ -101,10 +101,10 @@ export default function Portfolio() {
 
             <StatsCard
               title="Total Profit/Loss"
-              value={`$${portfolioStats.totalProfit.toLocaleString('en-US', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})}`}
+              value={`₹${portfolioStats.totalProfit.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`}
 
               change={portfolioStats.totalReturn}
               trend={portfolioStats.totalProfit >= 0 ? "up" : "down"}
@@ -114,10 +114,10 @@ export default function Portfolio() {
 
             <StatsCard
               title="Daily Change"
-              value={`$${portfolioStats.dayChange.toLocaleString('en-US', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})}`}
+              value={`₹${portfolioStats.dayChange.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`}
 
               change={portfolioStats.dayChangePercent}
               trend={trend}
@@ -145,7 +145,6 @@ export default function Portfolio() {
               priceChange={portfolioStats.dayChange}
               percentChange={portfolioStats.dayChangePercent}
               trend={portfolioStats.dayChange >= 0 ? "up" : "down"}
-              forceSimpleSeries
             />
 
           </div>

@@ -28,10 +28,7 @@ interface StockChartProps {
   trend?: 'up' | 'down' | 'volatile';
 }
 
-/**
- * ✅ deterministic series builder
- * anchors chart to real current price + change
- */
+
 function buildSeries(days: number, current: number, change: number) {
   const prev = current - change;
   const result = [];
@@ -94,10 +91,10 @@ const StockChart = ({
 
           <div className="text-right">
             <p className="text-xl font-bold text-white">
-              ${currentPrice.toFixed(2)}
+              ₹{currentPrice.toFixed(2)}
             </p>
             <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-              ${Math.abs(priceChange).toFixed(2)} ({isPositive ? '+' : '-'}
+              ₹{Math.abs(priceChange).toFixed(2)} ({isPositive ? '+' : '-'}
               {Math.abs(percentChange).toFixed(2)}%)
             </p>
           </div>
@@ -137,7 +134,7 @@ const StockChart = ({
                   borderRadius: '0.5rem',
                   color: 'white'
                 }}
-                formatter={(v: number) => [`$${v.toFixed(2)}`, 'Value']}
+                formatter={(v: number) => [`₹${v.toFixed(2)}`, 'Value']}
               />
 
               <Area

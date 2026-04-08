@@ -172,9 +172,9 @@ const NewsSection = ({
       setNewsItems([
         {
           id: '1',
-          headline: 'Fed Signals Potential Rate Cuts as Inflation Cools Down',
-          summary: 'Federal Reserve officials indicated they could begin cutting interest rates soon.',
-          source: 'Financial Times',
+          headline: 'RBI Signals Potential Rate Cut as Inflation Eases',
+          summary: 'Reserve Bank of India officials indicated they could begin cutting the repo rate soon.',
+          source: 'Economic Times',
           time: '2 hours ago',
           datetime: new Date(),
           url: '#',
@@ -183,9 +183,9 @@ const NewsSection = ({
         },
         {
           id: '2',
-          headline: 'Tech Stocks Rally Following Strong Earnings Reports',
-          summary: 'Major technology companies posted better-than-expected quarterly results.',
-          source: 'Wall Street Journal',
+          headline: 'IT Stocks Rally as TCS and Infosys Report Strong Earnings',
+          summary: 'Major Indian IT companies posted better-than-expected quarterly results.',
+          source: 'Moneycontrol',
           time: '3 hours ago',
           datetime: new Date(),
           url: '#',

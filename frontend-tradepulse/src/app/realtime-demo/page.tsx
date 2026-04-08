@@ -30,11 +30,11 @@ export default function RealTimeDemo() {
       </p>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StockPriceDisplay symbol="AAPL" name="Apple Inc." />
-        <StockPriceDisplay symbol="MSFT" name="Microsoft Corp." />
-        <StockPriceDisplay symbol="GOOGL" name="Alphabet Inc." />
-        <StockPriceDisplay symbol="AMZN" name="Amazon.com Inc." />
-        <StockPriceDisplay symbol="TSLA" name="Tesla Inc." />
+        <StockPriceDisplay symbol="RELIANCE.NS" name="Reliance Industries Ltd." />
+        <StockPriceDisplay symbol="TCS.NS" name="Tata Consultancy Services Ltd." />
+        <StockPriceDisplay symbol="INFY.NS" name="Infosys Ltd." />
+        <StockPriceDisplay symbol="HDFCBANK.NS" name="HDFC Bank Ltd." />
+        <StockPriceDisplay symbol="ICICIBANK.NS" name="ICICI Bank Ltd." />
       </div>
       
       <div className="mt-10">

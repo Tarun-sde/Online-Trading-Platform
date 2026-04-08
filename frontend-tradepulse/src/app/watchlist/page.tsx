@@ -10,7 +10,7 @@ import { useRealTimeData } from '@/hooks/useRealTimeData';
 export default function WatchlistPage() {
 
   // ✅ LIVE featured stock
-  const { data: featured } = useRealTimeData("stock", "AAPL", true);
+  const { data: featured } = useRealTimeData("stock", "RELIANCE.NS", true);
 
   return (
     <ProtectedRoute>
