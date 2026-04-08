@@ -1,16 +1,18 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { 
+import { 
   getAllStocks, 
   getAllMarketIndices, 
   getChartData,
   getAllForexPairs,
+  getAllIndianIndices,
   getAllCryptocurrencies,
   getAllCommodities,
   getAllEconomicIndicators,
   getLatestNews,
-  getNewsForSymbol
-} = require('../services/marketData.service');
+  getNewsForSymbol,
+  fetchMarketNews
+} from '../services/marketData.service.js';
 
 /**
  * @route   GET /api/market-data/stocks
@@ -20,6 +22,16 @@ const {
 router.get('/stocks', (req, res) => {
   const stocks = getAllStocks();
   res.json(stocks);
+});
+
+/**
+ * @route   GET /api/market-data/indian-indices
+ * @desc    Get all Indian market indices (NIFTY 50, SENSEX, NIFTY BANK)
+ * @access  Public
+ */
+router.get('/indian-indices', (req, res) => {
+  const indices = getAllIndianIndices();
+  res.json(indices);
 });
 
 /**
@@ -98,10 +110,15 @@ router.get('/chart/:symbol', async (req, res) => {
  * @desc    Get latest news, optionally filtered by category
  * @access  Public
  */
-router.get('/news', (req, res) => {
-  const { category } = req.query;
-  const news = category ? getLatestNews(category) : getLatestNews();
-  res.json(news);
+router.get('/news', async (req, res) => {
+  try {
+    const { category } = req.query;
+    const news = await getLatestNews(category || null);
+    res.json(news);
+  } catch (error) {
+    console.error('Error fetching news:', error);
+    res.status(500).json({ message: 'Error fetching news', error: error.message });
+  }
 });
 
 /**
@@ -115,4 +132,4 @@ router.get('/news/:symbol', (req, res) => {
   res.json(news);
 });
 
-module.exports = router; 
+export default router; 

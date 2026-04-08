@@ -1,14 +1,14 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { 
+import { 
   getUserProfile, 
   updateUserProfile, 
   getAllUsers, 
   getUserById, 
   updateUser, 
   deleteUser 
-} = require('../controllers/user.controller');
-const { protect, admin } = require('../middleware/auth.middleware');
+} from '../controllers/user.controller.js';
+import { protect, admin } from '../middleware/auth.middleware.js';
 
 // User profile routes
 router.route('/profile')
@@ -24,4 +24,4 @@ router.route('/:id')
   .put(protect, admin, updateUser)
   .delete(protect, admin, deleteUser);
 
-module.exports = router; 
+export default router; 

@@ -1,8 +1,8 @@
-const express = require("express");
+import express from 'express';
 const router = express.Router();
-const { getStockPrice } = require("../services/stockService");
+import { getStockPrice } from '../services/stockService.js';
 
-router.get("/:symbol", async (req, res) => {
+router.get('/:symbol', async (req, res) => {
   try {
     const data = await getStockPrice(req.params.symbol);
     res.json(data);
@@ -11,4 +11,4 @@ router.get("/:symbol", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const ProductSchema = new mongoose.Schema({
   name: {
@@ -105,4 +105,4 @@ const ProductSchema = new mongoose.Schema({
 // Create a compound index for efficient querying
 ProductSchema.index({ productType: 1, symbol: 1 });
 
-module.exports = mongoose.model('Product', ProductSchema); 
+export default mongoose.model('Product', ProductSchema); 

@@ -1,9 +1,9 @@
-const asyncHandler = require('express-async-handler');
-const Order = require('../models/Order');
-const Product = require('../models/Product');
-const User = require('../models/User');
-const Portfolio = require('../models/Portfolio');
-const Transaction = require('../models/Transaction');
+import asyncHandler from 'express-async-handler';
+import Order from '../models/Order.js';
+import Product from '../models/Product.js';
+import User from '../models/User.js';
+import Portfolio from '../models/Portfolio.js';
+import Transaction from '../models/Transaction.js';
 
 /**
  * @desc    Create a new order
@@ -446,7 +446,7 @@ const executeOrder = async (orderId) => {
   await order.save();
 };
 
-module.exports = {
+export {
   createOrder,
   getAllOrders,
   getUserOrders,

@@ -1,6 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { 
+import { 
   createOrder, 
   getAllOrders, 
   getUserOrders, 
@@ -8,8 +8,8 @@ const {
   updateOrder, 
   cancelOrder, 
   getOrdersByStatus 
-} = require('../controllers/order.controller');
-const { protect, admin } = require('../middleware/auth.middleware');
+} from '../controllers/order.controller.js';
+import { protect, admin } from '../middleware/auth.middleware.js';
 
 // User specific routes
 router.get('/user', protect, getUserOrders);
@@ -27,4 +27,4 @@ router.route('/:id')
   .put(protect, admin, updateOrder)
   .delete(protect, cancelOrder);
 
-module.exports = router; 
+export default router; 

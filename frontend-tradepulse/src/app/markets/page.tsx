@@ -101,7 +101,7 @@ const AssetDisplay = ({
 export default function MarketsPage() {
   const BASE = 'http://localhost:5000/api/market-data';
 
-  const stockSymbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA'];
+  const stockSymbols = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'ICICIBANK.NS'];
 
   const [activeTab, setActiveTab] = useState('stocks');
 
@@ -109,7 +109,24 @@ export default function MarketsPage() {
   const [cryptos, setCryptos] = useState<Crypto[]>([]);
   const [commodities, setCommodities] = useState<Commodity[]>([]);
   const [indicators, setIndicators] = useState<EconomicIndicator[]>([]);
+  const [indianIndices, setIndianIndices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchIndianIndices = async () => {
+      try {
+        const res = await fetch(`${BASE}/indian-indices`);
+        const data = await res.json();
+        setIndianIndices(data);
+      } catch (e) {
+        console.error("Failed to fetch Indian indices", e);
+      }
+    };
+
+    fetchIndianIndices();
+    const interval = setInterval(fetchIndianIndices, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -148,12 +165,13 @@ export default function MarketsPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8 pt-20">
 
-      <h1 className="text-3xl font-bold mb-6">Global Markets</h1>
+      <h1 className="text-3xl font-bold mb-6">Indian Markets Overview</h1>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
 
         <TabsList className="mb-6 bg-gray-800">
           <TabsTrigger value="stocks">Stocks</TabsTrigger>
+          <TabsTrigger value="indian-indices">Indian Indices</TabsTrigger>
           <TabsTrigger value="forex">Forex</TabsTrigger>
           <TabsTrigger value="crypto">Cryptocurrencies</TabsTrigger>
           <TabsTrigger value="commodities">Commodities</TabsTrigger>
@@ -166,6 +184,23 @@ export default function MarketsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {stockSymbols.map(symbol => (
               <StockPriceDisplay key={symbol} symbol={symbol} />
+            ))}
+          </div>
+        </TabsContent>
+
+        {/*Indian-Indices*/}
+        <TabsContent value="indian-indices">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {indianIndices.map(index => (
+              <AssetDisplay
+                key={index.symbol}
+                symbol={index.symbol}
+                name={index.name}
+                value={index.currentValue || index.currentPrice}
+                change={index.change}
+                percentChange={index.percentChange}
+                lastUpdated={index.lastUpdated}
+              />
             ))}
           </div>
         </TabsContent>

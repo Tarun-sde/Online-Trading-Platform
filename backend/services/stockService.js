@@ -1,4 +1,4 @@
-const axios = require("axios");
+import axios from "axios";
 
 const API_KEY = process.env.STOCK_API_KEY;
 
@@ -8,4 +8,4 @@ async function getStockPrice(symbol) {
   return res.data;
 }
 
-module.exports = { getStockPrice };
+export { getStockPrice };

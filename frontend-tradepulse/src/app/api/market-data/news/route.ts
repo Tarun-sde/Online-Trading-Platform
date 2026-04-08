@@ -8,23 +8,23 @@ export async function GET(request: Request) {
   const allNews = [
     {
       id: '1',
-      title: 'Federal Reserve Signals Potential Rate Cuts',
-      summary: 'Fed officials indicate a shift in monetary policy as inflation shows signs of cooling.',
+      title: 'RBI Signals Potential Repo Rate Cut as Inflation Eases',
+      summary: 'RBI officials indicate a shift in monetary policy as CPI inflation shows signs of cooling below 5%.',
       category: 'ECONOMY',
-      source: 'Financial Times',
+      source: 'Economic Times',
       url: '#',
       timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      relatedSymbols: ['US_INTEREST_RATE', 'SPX']
+      relatedSymbols: ['RBI_REPO', '^NSEI']
     },
     {
       id: '2',
-      title: 'Apple Announces New Product Line',
-      summary: 'Tech giant unveils next generation of devices at annual developer conference.',
+      title: 'TCS Reports Strong Quarterly Earnings, Beats Estimates',
+      summary: 'India\'s largest IT services company posts robust revenue growth driven by cloud and AI deals.',
       category: 'STOCKS',
-      source: 'Tech Today',
+      source: 'Moneycontrol',
       url: '#',
       timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-      relatedSymbols: ['AAPL']
+      relatedSymbols: ['TCS.NS']
     },
     {
       id: '3',
@@ -48,33 +48,33 @@ export async function GET(request: Request) {
     },
     {
       id: '5',
-      title: 'Euro Strengthens Against Dollar',
-      summary: 'Common currency gains as ECB holds rates steady while Fed signals cuts.',
+      title: 'Rupee Strengthens Against Dollar on Strong FII Inflows',
+      summary: 'Indian rupee gains as foreign institutional investors increase equity allocations to India.',
       category: 'FOREX',
-      source: 'FX Daily',
+      source: 'Livemint',
       url: '#',
       timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      relatedSymbols: ['EUR/USD']
+      relatedSymbols: ['USD/INR']
     },
     {
       id: '6',
-      title: 'Market Volatility Increases Amid Economic Uncertainty',
-      summary: 'Major indices experience fluctuations as investors react to mixed economic signals.',
+      title: 'NIFTY Hits Record High Amid Strong FII Inflows',
+      summary: 'Benchmark indices rally as foreign investors pour capital into Indian equities.',
       category: 'MARKET',
-      source: 'Market Watch',
+      source: 'Moneycontrol',
       url: '#',
       timestamp: new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString(),
-      relatedSymbols: ['VIX', 'SPX']
+      relatedSymbols: ['^NSEI', '^BSESN']
     },
     {
       id: '7',
-      title: 'Tesla Exceeds Delivery Expectations',
-      summary: 'Electric vehicle manufacturer reports stronger than anticipated quarterly deliveries.',
+      title: 'Reliance Industries Plans Major Green Energy Push',
+      summary: 'India\'s largest conglomerate announces massive investment in renewable energy and hydrogen.',
       category: 'STOCKS',
-      source: 'Auto News',
+      source: 'Business Standard',
       url: '#',
       timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-      relatedSymbols: ['TSLA']
+      relatedSymbols: ['RELIANCE.NS']
     },
     {
       id: '8',

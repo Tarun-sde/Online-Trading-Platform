@@ -1,5 +1,5 @@
-const asyncHandler = require('express-async-handler');
-const User = require('../models/User');
+import asyncHandler from 'express-async-handler';
+import User from '../models/User.js';
 
 /**
  * @desc    Get current user profile
@@ -153,7 +153,7 @@ const deleteUser = asyncHandler(async (req, res) => {
   }
 });
 
-module.exports = {
+export {
   getUserProfile,
   updateUserProfile,
   getAllUsers,

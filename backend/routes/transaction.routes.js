@@ -1,14 +1,14 @@
-const express = require('express');
-const router = express.Router();
-const { 
+import express from 'express';
+const router = express.Router();  
+import { 
   getAllTransactions, 
   getUserTransactions, 
   getTransactionById, 
   createDeposit, 
   createWithdrawal, 
   getTransactionsByType 
-} = require('../controllers/transaction.controller');
-const { protect, admin } = require('../middleware/auth.middleware');
+} from '../controllers/transaction.controller.js';
+import { protect, admin } from '../middleware/auth.middleware.js';
 
 // User specific routes
 router.get('/user', protect, getUserTransactions);
@@ -22,4 +22,4 @@ router.get('/:id', protect, getTransactionById);
 // Admin only route
 router.get('/', protect, admin, getAllTransactions);
 
-module.exports = router; 
+export default router; 

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const PriceAlertSchema = new mongoose.Schema({
   user: {
@@ -72,4 +72,4 @@ const PriceAlertSchema = new mongoose.Schema({
 PriceAlertSchema.index({ user: 1, product: 1, isActive: 1 });
 PriceAlertSchema.index({ product: 1, alertType: 1, isActive: 1 });
 
-module.exports = mongoose.model('PriceAlert', PriceAlertSchema); 
+export default mongoose.model('PriceAlert', PriceAlertSchema); 

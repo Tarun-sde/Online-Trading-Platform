@@ -448,6 +448,4 @@ const setupWebSocketServer = (io) => {
   };
 };
 
-module.exports = {
-  setupWebSocketServer
-}; 
+export { setupWebSocketServer };

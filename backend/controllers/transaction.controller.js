@@ -1,6 +1,6 @@
-const asyncHandler = require('express-async-handler');
-const Transaction = require('../models/Transaction');
-const User = require('../models/User');
+import asyncHandler from 'express-async-handler';
+import Transaction from '../models/Transaction.js';
+import User from '../models/User.js';
 
 /**
  * @desc    Get all transactions
@@ -229,7 +229,7 @@ const getTransactionsByType = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = {
+export {
   getAllTransactions,
   getUserTransactions,
   getTransactionById,

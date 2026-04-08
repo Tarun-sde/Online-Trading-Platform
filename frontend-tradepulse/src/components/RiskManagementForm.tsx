@@ -63,7 +63,7 @@ const RiskManagementForm = ({ symbol, currentPrice, onOrderCreated }: RiskManage
             triggerPrice: parseFloat(triggerPrice),
             timeInForce
           }, 'mock-token'); // In a real app, this would be user.token
-          setSuccessMessage(`Stop-loss order created at $${triggerPrice}`);
+          setSuccessMessage(`Stop-loss order created at ₹${triggerPrice}`);
           break;
           
         case 'take-profit':
@@ -73,7 +73,7 @@ const RiskManagementForm = ({ symbol, currentPrice, onOrderCreated }: RiskManage
             targetPrice: parseFloat(targetPrice),
             timeInForce
           }, 'mock-token');
-          setSuccessMessage(`Take-profit order created at $${targetPrice}`);
+          setSuccessMessage(`Take-profit order created at ₹${targetPrice}`);
           break;
           
         case 'trailing-stop':
@@ -84,7 +84,7 @@ const RiskManagementForm = ({ symbol, currentPrice, onOrderCreated }: RiskManage
             trailType,
             timeInForce
           }, 'mock-token');
-          setSuccessMessage(`Trailing stop order created (${trailAmount}${trailType === 'PERCENTAGE' ? '%' : ' USD'})`);
+          setSuccessMessage(`Trailing stop order created (${trailAmount}${trailType === 'PERCENTAGE' ? '%' : ' INR'})`);
           break;
           
         case 'stop-limit':
@@ -95,7 +95,7 @@ const RiskManagementForm = ({ symbol, currentPrice, onOrderCreated }: RiskManage
             limitPrice: parseFloat(limitPrice),
             timeInForce
           }, 'mock-token');
-          setSuccessMessage(`Stop-limit order created (Stop: $${stopPrice}, Limit: $${limitPrice})`);
+          setSuccessMessage(`Stop-limit order created (Stop: ₹${stopPrice}, Limit: ₹${limitPrice})`);
           break;
       }
       
@@ -202,7 +202,7 @@ const RiskManagementForm = ({ symbol, currentPrice, onOrderCreated }: RiskManage
               Trigger Price
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">$</span>
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">₹</span>
               <input
                 type="number"
                 id="triggerPrice"
@@ -215,7 +215,7 @@ const RiskManagementForm = ({ symbol, currentPrice, onOrderCreated }: RiskManage
               />
             </div>
             <p className="mt-1 text-xs text-gray-400">
-              Current price: ${currentPrice.toFixed(2)}
+              Current price: ₹{currentPrice.toFixed(2)}
             </p>
           </div>
         )}
@@ -226,7 +226,7 @@ const RiskManagementForm = ({ symbol, currentPrice, onOrderCreated }: RiskManage
               Target Price
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">$</span>
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">₹</span>
               <input
                 type="number"
                 id="targetPrice"
@@ -239,7 +239,7 @@ const RiskManagementForm = ({ symbol, currentPrice, onOrderCreated }: RiskManage
               />
             </div>
             <p className="mt-1 text-xs text-gray-400">
-              Current price: ${currentPrice.toFixed(2)}
+              Current price: ₹{currentPrice.toFixed(2)}
             </p>
           </div>
         )}
@@ -266,7 +266,7 @@ const RiskManagementForm = ({ symbol, currentPrice, onOrderCreated }: RiskManage
                 onChange={(e) => setTrailType(e.target.value as 'PRICE' | 'PERCENTAGE')}
               >
                 <option value="PERCENTAGE">%</option>
-                <option value="PRICE">USD</option>
+                <option value="PRICE">INR</option>
               </select>
             </div>
           </div>
@@ -279,7 +279,7 @@ const RiskManagementForm = ({ symbol, currentPrice, onOrderCreated }: RiskManage
                 Stop Price
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">$</span>
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">₹</span>
                 <input
                   type="number"
                   id="stopPrice"
@@ -298,7 +298,7 @@ const RiskManagementForm = ({ symbol, currentPrice, onOrderCreated }: RiskManage
                 Limit Price
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">$</span>
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">₹</span>
                 <input
                   type="number"
                   id="limitPrice"
@@ -311,7 +311,7 @@ const RiskManagementForm = ({ symbol, currentPrice, onOrderCreated }: RiskManage
                 />
               </div>
               <p className="mt-1 text-xs text-gray-400">
-                Current price: ${currentPrice.toFixed(2)}
+                Current price: ₹{currentPrice.toFixed(2)}
               </p>
             </div>
           </>

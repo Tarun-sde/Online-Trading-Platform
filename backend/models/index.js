@@ -1,13 +1,13 @@
-const User = require('./User');
-const Product = require('./Product');
-const Order = require('./Order');
-const Portfolio = require('./Portfolio');
-const Transaction = require('./Transaction');
-const Watchlist = require('./Watchlist');
-const Notification = require('./Notification');
-const PriceAlert = require('./PriceAlert');
+import User from './User.js'; 
+import Product from './Product.js';
+import Order from './Order.js';
+import Portfolio from './Portfolio.js';
+import Transaction from './Transaction.js';
+import Watchlist from './Watchlist.js';
+import Notification from './Notification.js';
+import PriceAlert from './PriceAlert.js';
 
-module.exports = {
+export default {
   User,
   Product,
   Order,

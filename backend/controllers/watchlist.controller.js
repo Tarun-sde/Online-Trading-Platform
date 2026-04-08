@@ -1,6 +1,6 @@
-const asyncHandler = require('express-async-handler');
-const Watchlist = require('../models/Watchlist');
-const Product = require('../models/Product');
+import asyncHandler from 'express-async-handler';
+import Watchlist from '../models/Watchlist.js';
+import Product from '../models/Product.js';
 
 /**
  * @desc    Create a new watchlist
@@ -202,7 +202,7 @@ const removeProductFromWatchlist = asyncHandler(async (req, res) => {
   res.json(updatedWatchlist);
 });
 
-module.exports = {
+export {
   createWatchlist,
   getUserWatchlists,
   getWatchlistById,

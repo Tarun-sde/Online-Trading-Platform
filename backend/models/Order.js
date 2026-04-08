@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const OrderSchema = new mongoose.Schema({
   user: {
@@ -90,4 +90,4 @@ OrderSchema.index({ product: 1, status: 1 });
 OrderSchema.index({ status: 1, orderType: 1 });
 OrderSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = mongoose.model('Order', OrderSchema); 
+export default mongoose.model('Order', OrderSchema); 

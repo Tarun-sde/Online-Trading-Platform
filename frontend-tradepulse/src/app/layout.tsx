@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NexTrade - Modern Trading Platform",
-  description: "A powerful and intuitive trading platform for modern investors",
+  title: "NexTrade - Indian Market Trading & Investment Platform",
+  description: "A powerful and intuitive trading platform for Indian markets (NSE-focused)",
 };
 
 export default function RootLayout({
