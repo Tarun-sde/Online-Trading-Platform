@@ -1,19 +1,27 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+/**
+ * AuthContext.tsx — REAL backend authentication
+ *
+ * Calls POST /api/auth/login and POST /api/auth/register.
+ * Stores JWT in localStorage via the centralised auth helper.
+ * NO more mock login — any real account works.
+ */
+
+import React, {
+  createContext, useContext, useState, useEffect, useCallback, ReactNode,
+} from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  API_BASE,
+  getToken, setToken, getStoredUser, setStoredUser, clearStoredUser,
+  StoredUser,
+} from '@/lib/auth';
 
-// Define user type
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatarUrl?: string;
-}
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-// Define auth context type
 interface AuthContextType {
-  user: User | null;
+  user: StoredUser | null;
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
@@ -23,173 +31,162 @@ interface AuthContextType {
   clearError: () => void;
 }
 
-// Create auth context
+// ── Context ───────────────────────────────────────────────────────────────────
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Create provider component
+// ── Provider ──────────────────────────────────────────────────────────────────
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
+  const [user, setUser]       = useState<StoredUser | null>(null);
+  const [loading, setLoading] = useState(true);       // true on first mount while we restore session
+  const [error, setError]     = useState<string | null>(null);
   const router = useRouter();
 
-  // Set isClient to true when component mounts (client-side only)
+  // ── Restore session from localStorage on mount ────────────────────────────
   useEffect(() => {
-    setIsClient(true);
+    const storedUser = getStoredUser();
+    const token      = getToken();
+
+    if (storedUser && token) {
+      setUser(storedUser);
+      console.log('[auth] Session restored for:', storedUser.email);
+    }
+
+    setLoading(false);
   }, []);
 
-  // Mock a user persistence check (only run on client side)
-  useEffect(() => {
-    if (!isClient) return;
-
-    const checkUserLoggedIn = async () => {
-      setLoading(true);
-      try {
-        // In a real app, this would be an API call to validate session
-        const storedUser = localStorage.getItem('nextradeUser');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-      } catch (error) {
-        console.error('Failed to restore session', error);
-        if (isClient) {
-          localStorage.removeItem('nextradeUser');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkUserLoggedIn();
-  }, [isClient]);
-
-  // Mock login functionality
-  const login = async (email: string, password: string) => {
+  // ── Login ─────────────────────────────────────────────────────────────────
+  const login = useCallback(async (email: string, password: string) => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      // In a real app, this would be an API call to a backend auth service
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
-      
-      // Simple validation (in a real app, this would be handled by the backend)
-      if (email === 'demo@nextrade.com' && password === 'password123') {
-        const newUser = {
-          id: '1',
-          name: 'Demo User',
-          email: 'demo@nextrade.com',
-          avatarUrl: 'https://placehold.co/200x200/111827/FFFFFF?text=DU',
-        };
-        
-        setUser(newUser);
-        if (isClient) {
-          localStorage.setItem('nextradeUser', JSON.stringify(newUser));
-        }
-        router.push('/dashboard');
-      } else {
-        throw new Error('Invalid email or password');
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Login failed. Check your credentials.');
       }
+
+      // Backend returns: { _id, firstName, lastName, email, role, token, refreshToken }
+      const storedUser: StoredUser = {
+        id:    data._id,
+        name:  `${data.firstName} ${data.lastName}`.trim(),
+        email: data.email,
+        role:  data.role ?? 'user',
+      };
+
+      setToken(data.token);
+      setStoredUser(storedUser);
+      setUser(storedUser);
+
+      console.log('[auth] Login successful. Token stored.');
+      router.push('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      setError(message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
-  // Mock register functionality
-  const register = async (name: string, email: string, password: string) => {
+  // ── Register ──────────────────────────────────────────────────────────────
+  const register = useCallback(async (name: string, email: string, password: string) => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      // In a real app, this would be an API call to a backend auth service
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
-      
-      // Simple validation (in a real app, this would be handled by the backend)
-      if (email && password && name) {
-        const newUser = {
-          id: '1',
-          name,
-          email,
-          avatarUrl: 'https://placehold.co/200x200/111827/FFFFFF?text=NU',
-        };
-        
-        setUser(newUser);
-        if (isClient) {
-          localStorage.setItem('nextradeUser', JSON.stringify(newUser));
-        }
-        router.push('/dashboard');
-      } else {
-        throw new Error('Please fill in all required fields');
+      // Split "John Doe" → firstName: "John", lastName: "Doe"
+      const parts     = name.trim().split(/\s+/);
+      const firstName = parts[0] ?? name;
+      const lastName  = parts.slice(1).join(' ') || firstName; // backend requires lastName
+
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firstName, lastName, email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Registration failed.');
       }
+
+      // Auto-login after successful registration (backend returns token immediately)
+      const storedUser: StoredUser = {
+        id:    data._id,
+        name:  `${data.firstName ?? firstName} ${data.lastName ?? lastName}`.trim(),
+        email: data.email,
+        role:  data.role ?? 'user',
+      };
+
+      setToken(data.token);
+      setStoredUser(storedUser);
+      setUser(storedUser);
+
+      console.log('[auth] Registration successful. Auto-logged in.');
+      router.push('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      setError(message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
-  // Mock logout functionality
-  const logout = () => {
+  // ── Logout ─────────────────────────────────────────────────────────────────
+  const logout = useCallback(() => {
+    clearStoredUser();
     setUser(null);
-    if (isClient) {
-      localStorage.removeItem('nextradeUser');
-    }
+    console.log('[auth] Logged out. Token cleared.');
     router.push('/');
-  };
+  }, [router]);
 
-  // Mock forgot password functionality
-  const forgotPassword = async (email: string) => {
+  // ── Forgot password (real endpoint) ───────────────────────────────────────
+  const forgotPassword = useCallback(async (email: string) => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      // In a real app, this would be an API call to send a reset email
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
-      
-      // Simple validation
-      if (!email) {
-        throw new Error('Please enter your email address');
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || 'Failed to send reset email.');
       }
-      
-      // Show success message (in a real app, we would rely on the API response)
+
       router.push('/auth/login?reset=requested');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
-  // Clear any auth errors
-  const clearError = () => {
-    setError(null);
-  };
+  const clearError = useCallback(() => setError(null), []);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        error,
-        login,
-        register,
-        logout,
-        forgotPassword,
-        clearError,
-      }}
-    >
+    <AuthContext.Provider value={{ user, loading, error, login, register, logout, forgotPassword, clearError }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook to use auth context
+// ── Hook ──────────────────────────────────────────────────────────────────────
+
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}; 
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
+  return ctx;
+};

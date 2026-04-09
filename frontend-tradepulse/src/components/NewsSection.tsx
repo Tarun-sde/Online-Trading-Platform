@@ -168,31 +168,8 @@ const NewsSection = ({
       }
     } catch (error) {
       console.error('Failed to fetch news:', error);
-      // Fall back to sample data if API fails
-      setNewsItems([
-        {
-          id: '1',
-          headline: 'RBI Signals Potential Rate Cut as Inflation Eases',
-          summary: 'Reserve Bank of India officials indicated they could begin cutting the repo rate soon.',
-          source: 'Economic Times',
-          time: '2 hours ago',
-          datetime: new Date(),
-          url: '#',
-          image: 'https://placehold.co/400x300/111827/FFFFFF?text=Financial+News',
-          categories: ['MARKET', 'ECONOMY']
-        },
-        {
-          id: '2',
-          headline: 'IT Stocks Rally as TCS and Infosys Report Strong Earnings',
-          summary: 'Major Indian IT companies posted better-than-expected quarterly results.',
-          source: 'Moneycontrol',
-          time: '3 hours ago',
-          datetime: new Date(),
-          url: '#',
-          image: 'https://placehold.co/400x300/111827/FFFFFF?text=Tech+News',
-          categories: ['STOCKS', 'TECHNOLOGY']
-        },
-      ]);
+      // Show empty state — no fake or static articles
+      setNewsItems([]);
     } finally {
       setLoading(false);
     }

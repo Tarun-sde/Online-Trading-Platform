@@ -25,12 +25,17 @@ import orderRoutes from './routes/order.routes.js';
 import transactionRoutes from './routes/transaction.routes.js';
 import watchlistRoutes from './routes/watchlist.routes.js';
 import marketDataRoutes from './routes/marketData.routes.js';
+import demoTradingRoutes from './routes/demoTrading.routes.js';
 // import tradeRoutes from './routes/trade.routes'; // Commented out - file doesn't exist
 // import portfolioRoutes from './routes/portfolio.routes'; // Commented out - file doesn't exist
 import riskManagementRoutes from './routes/riskManagement.routes.js';
+import analyzeRoutes from './routes/analyze.js';
+import portfolioRoutes from './routes/portfolio.routes.js';
+import strategiesRoutes from './routes/strategies.routes.js';
+import { seedDefaultStrategies } from './config/defaultStrategies.seed.js';
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB, then seed default strategies
+connectDB().then(() => seedDefaultStrategies()).catch(() => {});
 
 // Initialize Express app
 const app = express();
@@ -59,19 +64,21 @@ app.use(compression());
 app.use(express.json());
 app.use(morgan('dev'));
 
-app.use("/api/stocks", stockRoutes);
-
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/transactions', transactionRoutes);
-app.use('/api/watchlist', watchlistRoutes);
 app.use('/api/market-data', marketDataRoutes);
-// app.use('/api/trades', tradeRoutes); // Commented out - file doesn't exist
-// app.use('/api/portfolio', portfolioRoutes); // Commented out - file doesn't exist
 app.use('/api/risk-management', riskManagementRoutes);
+app.use('/api/analyze', analyzeRoutes);
+app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/strategies', strategiesRoutes);
+app.use('/api/stocks', stockRoutes);
+app.use('/api/watchlist', watchlistRoutes);
+app.use('/api/demo', demoTradingRoutes);
+
 
 // Error middleware
 app.use(notFound);

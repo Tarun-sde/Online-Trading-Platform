@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRealTimeData } from '@/hooks/useRealTimeData';
+import { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { API_BASE } from '@/lib/auth';
 
 interface StockPriceDisplayProps {
   symbol: string;
@@ -11,35 +11,57 @@ interface StockPriceDisplayProps {
 }
 
 const StockPriceDisplay = ({ symbol, name, compact = false }: StockPriceDisplayProps) => {
-  const { 
-    data: stockData, 
-    changes,
-    isConnected,
-    lastUpdated 
-  } = useRealTimeData('stock', symbol, true);
-  
+  const [stockData, setStockData] = useState<any>(null);
+  const [lastPrice, setLastPrice] = useState<number | null>(null);
+  const [isLive, setIsLive] = useState(false);
+
   // State for animation
   const [isFlashing, setIsFlashing] = useState(false);
-  const [priceDirection, setPriceDirection] = useState('none');
+  const [priceDirection, setPriceDirection] = useState<'up' | 'down' | 'none'>('none');
   
-  // Apply animation when price changes
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
-    if (changes && changes.priceChange !== 0) {
-      // Set direction for styling
-      setPriceDirection(changes.priceChange > 0 ? 'up' : 'down');
-      
-      // Trigger flash animation
-      setIsFlashing(true);
-      
-      // Reset animation after it completes
-      const timer = setTimeout(() => {
-        setIsFlashing(false);
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [changes]);
-  
+    const fetchRealData = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/stocks/${encodeURIComponent(symbol)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setIsLive(true);
+          
+          if (lastPrice !== null && data.currentPrice !== lastPrice) {
+            setPriceDirection(data.currentPrice > lastPrice ? 'up' : 'down');
+            setIsFlashing(true);
+            setTimeout(() => setIsFlashing(false), 1000);
+          }
+          
+          setLastPrice(data.currentPrice);
+          setStockData({
+            currentPrice: data.currentPrice,
+            change: data.closingPrices?.length >= 2 
+              ? data.currentPrice - data.closingPrices[data.closingPrices.length - 2]
+              : 0,
+            percentChange: data.closingPrices?.length >= 2 
+              ? ((data.currentPrice - data.closingPrices[data.closingPrices.length - 2]) / data.closingPrices[data.closingPrices.length - 2]) * 100
+              : 0,
+            lastUpdated: new Date()
+          });
+        } else {
+          setIsLive(false);
+        }
+      } catch (err) {
+        setIsLive(false);
+      }
+    };
+
+    fetchRealData();
+    timerRef.current = setInterval(fetchRealData, 10000); // Poll every 10 seconds
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [symbol, lastPrice]);
+
   if (!stockData) {
     return (
       <div className="bg-gray-800 p-4 rounded-lg shadow-md animate-pulse">
@@ -48,23 +70,21 @@ const StockPriceDisplay = ({ symbol, name, compact = false }: StockPriceDisplayP
       </div>
     );
   }
-  
+
   return (
     <div className="bg-gray-800 p-4 rounded-lg shadow-md">
       {/* Header with stock info */}
       <div className="flex justify-between items-center mb-2">
         <div>
-          <h3 className="font-bold">{name || symbol}</h3>
+          <h3 className="font-bold truncate max-w-[150px]" title={name || symbol}>{name || symbol}</h3>
           <p className="text-xs text-gray-400">{symbol}</p>
         </div>
         
         {!compact && (
           <div className="flex items-center">
-            <div 
-              className={`h-2 w-2 rounded-full mr-2 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
-            ></div>
+            <div className={`h-2 w-2 rounded-full mr-2 ${isLive ? 'bg-green-500' : 'bg-red-500'}`}></div>
             <p className="text-xs text-gray-400">
-              {isConnected ? 'Live' : 'Offline'}
+              {isLive ? 'Live API' : 'Offline'}
             </p>
           </div>
         )}
@@ -88,33 +108,27 @@ const StockPriceDisplay = ({ symbol, name, compact = false }: StockPriceDisplayP
         }}
         transition={{ duration: 0.5 }}
       >
-        ₹{stockData.currentPrice?.toFixed(2) || "0.00"}
+        ₹{stockData.currentPrice?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "0.00"}
       </motion.div>
       
       {/* Change info */}
-      {changes && (
-        <div className="flex items-center mt-1">
-          <span 
-            className={`inline-block mr-2 ${
-              changes.priceChange >= 0 ? 'text-green-500' : 'text-red-500'
-            }`}
-          >
-            {changes.priceChange >= 0 ? '▲' : '▼'}
-          </span>
-          <span className={`${changes.priceChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-            ₹{Math.abs(changes.priceChange).toFixed(2)} ({Math.abs(changes.pricePercentChange).toFixed(2)}%)
-          </span>
-        </div>
-      )}
+      <div className="flex items-center mt-1">
+        <span className={`inline-block mr-2 ${stockData.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+          {stockData.change >= 0 ? '▲' : '▼'}
+        </span>
+        <span className={`${stockData.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+          ₹{Math.abs(stockData.change).toFixed(2)} ({Math.abs(stockData.percentChange).toFixed(2)}%)
+        </span>
+      </div>
       
       {/* Last updated timestamp */}
-      {!compact && lastUpdated && (
+      {!compact && stockData.lastUpdated && (
         <div className="mt-2 text-xs text-gray-400">
-          Updated: {lastUpdated.toLocaleTimeString()}
+          Sync: {stockData.lastUpdated.toLocaleTimeString()}
         </div>
       )}
     </div>
   );
 };
 
-export default StockPriceDisplay; 
+export default StockPriceDisplay;

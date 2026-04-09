@@ -6,65 +6,19 @@ import {
   ChartBarIcon, 
   ClockIcon 
 } from '@heroicons/react/24/outline';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
 import StockChart from '@/components/StockChart';
+import StockSearch from '@/components/StockSearch';
 import StatsCard from '@/components/StatsCard';
 import WatchList from '@/components/WatchList';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
-
+import { useSymbol } from '@/context/SymbolContext';
+import { usePortfolio } from '@/context/PortfolioContext';
 export default function Dashboard() {
-const holdings = [
-  { symbol: "RELIANCE.NS", shares: 25, avg: 2456.75 },
-  { symbol: "TCS.NS", shares: 15, avg: 3856.20 },
-  { symbol: "HDFCBANK.NS", shares: 20, avg: 1689.30 }
-];
+  const { holdings, stats, loading, livePrices } = usePortfolio();
 
-const [prices, setPrices] = useState<Record<string, any>>({});
-
-useEffect(() => {
-  const load = async () => {
-    const res = await fetch("http://localhost:5000/api/market-data/stocks");
-    const list = await res.json();
-    const map: any = {};
-    for (const s of list) map[s.symbol] = s;
-    setPrices(map);
-  };
-
-  load();
-  const id = setInterval(load, 60000);
-  return () => clearInterval(id);
-}, []);
-
-const portfolioData = useMemo(() => {
-  let totalValue = 0;
-  let prevValue = 0;
-
-  for (const h of holdings) {
-    const live = prices[h.symbol];
-    const price = live?.currentPrice ?? h.avg;
-    const prev = live?.previousClose ?? price;  // ✅ correct key
-
-
-    totalValue += price * h.shares;
-    prevValue += prev * h.shares;
-  }
-
-  const dayChange = totalValue - prevValue;
-  const dayChangePercent =
-    prevValue > 0 ? (dayChange / prevValue) * 100 : 0;
-
-  return {
-    totalValue,
-    dayChange,
-    dayChangePercent,
-    weeklyChange: dayChange * 5,
-    weeklyChangePercent: dayChangePercent * 5,
-    monthlyChange: dayChange * 20,
-    monthlyChangePercent: dayChangePercent * 20,
-  };
-}, [prices]);
-
+  console.log("Portfolio Data:", holdings);
 
   return (
     <ProtectedRoute>
@@ -81,61 +35,47 @@ const portfolioData = useMemo(() => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <StatsCard
               title="Portfolio Value"
-              value={`₹${portfolioData.totalValue.toLocaleString('en-IN', {
+              value={`₹${stats.totalValue.toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}`}
-              change={portfolioData.dayChangePercent}
-              trend={portfolioData.dayChangePercent >= 0 ? 'up' : 'down'}
-              color="green"
+              trend="neutral"
+              color="blue"
               icon={<BanknotesIcon className="h-5 w-5 text-white" />}
             />
             <StatsCard
-              title="Daily Change"
-              value={`₹${Math.abs(portfolioData.dayChange).toLocaleString('en-IN', {
+              title="Total Cost"
+              value={`₹${stats.totalCost.toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}`}
-              change={portfolioData.dayChangePercent}
-              trend={portfolioData.dayChangePercent >= 0 ? 'up' : 'down'}
-              color="blue"
+              trend="neutral"
+              color="indigo"
               icon={<ClockIcon className="h-5 w-5 text-white" />}
             />
             <StatsCard
-              title="Weekly Change"
-              value={`₹${Math.abs(portfolioData.weeklyChange).toLocaleString('en-IN', {
+              title="P&L"
+              value={`₹${Math.abs(stats.totalPnL).toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}`}
-              change={portfolioData.weeklyChangePercent}
-              trend={portfolioData.weeklyChangePercent >= 0 ? 'up' : 'down'}
-              color="indigo"
+              trend={stats.totalPnL >= 0 ? 'up' : 'down'}
+              color={stats.totalPnL >= 0 ? 'green' : 'red'}
               icon={<ChartBarIcon className="h-5 w-5 text-white" />}
             />
             <StatsCard
-              title="Monthly Change"
-              value={`₹${Math.abs(portfolioData.monthlyChange).toLocaleString('en-IN', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}`}
-              change={portfolioData.monthlyChangePercent}
-              trend={portfolioData.monthlyChangePercent >= 0 ? 'up' : 'down'}
-              color="purple"
+              title="Return %"
+              value={`${stats.pnlPct.toFixed(2)}%`}
+              change={stats.pnlPct}
+              trend={stats.pnlPct >= 0 ? 'up' : 'down'}
+              color={stats.pnlPct >= 0 ? 'green' : 'red'}
               icon={<ChartPieIcon className="h-5 w-5 text-white" />}
             />
           </div>
           
-          {/* Portfolio Chart */}
-          <div className="mb-8">
-            <StockChart
-              symbol="Portfolio"
-              name="Total Portfolio Value"
-              currentPrice={portfolioData.totalValue}
-              priceChange={portfolioData.dayChange}
-              percentChange={portfolioData.dayChangePercent}
-              trend="volatile"
-            />
-          </div>
+          {/* Stock Search + Real Chart (global SymbolContext) */}
+          <DashboardChartSection />
+
           
           {/* Portfolio Allocation */}
           <div className="mb-8">
@@ -145,21 +85,32 @@ const portfolioData = useMemo(() => {
                 <div className="bg-gray-800 rounded-lg p-4">
                   <h3 className="text-lg font-semibold text-white mb-2">By Asset Class</h3>
                   <div className="flex flex-col space-y-3">
-                    <AllocationBar label="Stocks" percentage={65} color="blue" />
-                    <AllocationBar label="Bonds" percentage={15} color="green" />
-                    <AllocationBar label="Cash" percentage={10} color="yellow" />
-                    <AllocationBar label="Crypto" percentage={5} color="purple" />
-                    <AllocationBar label="Commodities" percentage={5} color="orange" />
+                    <AllocationBar label="Stocks" percentage={100} color="blue" />
                   </div>
                 </div>
                 <div className="bg-gray-800 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-white mb-2">By Sector</h3>
+                  <h3 className="text-lg font-semibold text-white mb-2">Top Holdings</h3>
                   <div className="flex flex-col space-y-3">
-                    <AllocationBar label="Technology" percentage={40} color="indigo" />
-                    <AllocationBar label="Healthcare" percentage={20} color="blue" />
-                    <AllocationBar label="Financial" percentage={15} color="green" />
-                    <AllocationBar label="Consumer" percentage={15} color="yellow" />
-                    <AllocationBar label="Energy" percentage={10} color="red" />
+                    {holdings.length === 0 ? (
+                      <p className="text-sm text-gray-500">No holdings to display.</p>
+                    ) : (
+                      (() => {
+                        const colors: ('indigo' | 'blue' | 'green' | 'yellow' | 'red')[] = ['indigo', 'blue', 'green', 'yellow', 'red'];
+                        const top5 = [...holdings]
+                          .sort((a, b) => {
+                            const valA = a.quantity * (livePrices[a.symbol] ?? a.avgPrice);
+                            const valB = b.quantity * (livePrices[b.symbol] ?? b.avgPrice);
+                            return valB - valA;
+                          })
+                          .slice(0, 5);
+                          
+                        return top5.map((h, i) => {
+                          const val = h.quantity * (livePrices[h.symbol] ?? h.avgPrice);
+                          const pct = stats.totalValue > 0 ? (val / stats.totalValue) * 100 : 0;
+                          return <AllocationBar key={h.symbol} label={h.symbol} percentage={Number(pct.toFixed(1))} color={colors[i % colors.length]} />;
+                        });
+                      })()
+                    )}
                   </div>
                 </div>
               </div>
@@ -220,4 +171,35 @@ const AllocationBar = ({ label, percentage, color }: AllocationBarProps) => {
       </div>
     </div>
   );
-}; 
+};
+
+// ── Stock search + real chart section ─────────────────────────────────────────
+// Extracted as a proper component so hooks (useSymbol) are called at component level
+function DashboardChartSection() {
+  const { symbol, currentPrice, chartData, loading: chartLoading } = useSymbol();
+  const priceChange = chartData.length > 1 ? currentPrice - chartData[0].price : 0;
+  const pctChange =
+    chartData.length > 1 && chartData[0].price > 0
+      ? (priceChange / chartData[0].price) * 100
+      : 0;
+
+  return (
+    <div className="mb-8 space-y-4">
+      <div className="bg-gray-900 rounded-xl p-4 shadow-lg">
+        <p className="text-sm font-medium text-gray-300 mb-3">Search Stock</p>
+        <StockSearch />
+      </div>
+      {(symbol || chartLoading) && (
+        <StockChart
+          symbol={symbol || '…'}
+          currentPrice={currentPrice}
+          priceChange={priceChange}
+          percentChange={pctChange}
+          chartData={chartData}
+          loading={chartLoading}
+        />
+      )}
+    </div>
+  );
+}
+ 
