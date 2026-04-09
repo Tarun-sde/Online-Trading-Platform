@@ -45,8 +45,11 @@ const Navbar = () => {
               <Link href="/news" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
                 News
               </Link>
-              <Link href="/realtime-demo" className="text-blue-400 hover:text-blue-300 px-3 py-2 rounded-md text-sm font-medium">
-                Realtime Demo
+              <Link href="/strategy" className="text-indigo-400 hover:text-indigo-300 px-3 py-2 rounded-md text-sm font-medium">
+                Strategy Analyzer
+              </Link>
+              <Link href="/demo-trading" className="text-emerald-400 hover:text-emerald-300 px-3 py-2 rounded-md text-sm font-medium">
+                Demo Trading
               </Link>
             </div>
           </div>
@@ -101,8 +104,11 @@ const Navbar = () => {
               <Link href="/news" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
                 News
               </Link>
-              <Link href="/realtime-demo" className="text-blue-400 hover:text-blue-300 block px-3 py-2 rounded-md text-base font-medium">
-                Realtime Demo
+              <Link href="/strategy" className="text-indigo-400 hover:text-indigo-300 block px-3 py-2 rounded-md text-base font-medium">
+                Strategy Analyzer
+              </Link>
+              <Link href="/demo-trading" className="text-emerald-400 hover:text-emerald-300 block px-3 py-2 rounded-md text-base font-medium">
+                Demo Trading
               </Link>
               <div className="pt-4 pb-2 border-t border-gray-700">
                 <div className="px-3 py-2">

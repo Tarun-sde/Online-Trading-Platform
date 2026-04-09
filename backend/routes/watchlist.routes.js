@@ -1,28 +1,17 @@
 import express from 'express';
-const router = express.Router();
-import { 
-  createWatchlist, 
-  getUserWatchlists, 
-  getWatchlistById, 
-  updateWatchlist, 
-  deleteWatchlist, 
-  addProductToWatchlist, 
-  removeProductFromWatchlist 
-} from '../controllers/watchlist.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
+import {
+  getWatchlist,
+  addSymbolToWatchlist,
+  removeSymbolFromWatchlist,
+} from '../controllers/watchlist.controller.js';
 
-// Watchlist routes
-router.route('/')
-  .post(protect, createWatchlist)
-  .get(protect, getUserWatchlists);
+const router = express.Router();
 
-router.route('/:id')
-  .get(protect, getWatchlistById)
-  .put(protect, updateWatchlist)
-  .delete(protect, deleteWatchlist);
+router.use(protect);
 
-router.route('/:id/products/:productId')
-  .post(protect, addProductToWatchlist)
-  .delete(protect, removeProductFromWatchlist);
+router.get('/', getWatchlist);
+router.post('/add', addSymbolToWatchlist);
+router.delete('/remove/:symbol', removeSymbolFromWatchlist);
 
-export default router; 
+export default router;
